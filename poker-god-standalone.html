@@ -9,7 +9,7 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style> html,body{margin:0;background:#3b0764} #root{min-height:100vh} </style>
+  <style> html,body{margin:0;background:#04140d} #root{min-height:100vh} </style>
 </head>
 <body>
   <div id="root"></div>
@@ -173,13 +173,27 @@ function ping(kind, muted) {
     const mk = (f, t, dur, type = "sine", g = 0.09) => {
       const o = ac.createOscillator(), ga = ac.createGain();
       o.type = type; o.frequency.setValueAtTime(f, t);
-      ga.gain.setValueAtTime(0, t); ga.gain.linearRampToValueAtTime(g, t + 0.01);
+      ga.gain.setValueAtTime(0, t); ga.gain.linearRampToValueAtTime(g, t + 0.012);
       ga.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       o.connect(ga); ga.connect(ac.destination); o.start(t); o.stop(t + dur);
     };
-    if (kind === "good") { mk(660, now, 0.14); mk(990, now + 0.08, 0.22); }
-    else if (kind === "great") { mk(660, now, 0.12); mk(880, now + 0.07, 0.12); mk(1320, now + 0.15, 0.25); }
-    else if (kind === "unlock") { mk(523, now, 0.15); mk(659, now + 0.12, 0.15); mk(784, now + 0.24, 0.15); mk(1047, now + 0.36, 0.3); }
+    if (kind === "good") {
+      // dramatic rising fanfare with sustained chord
+      mk(523, now, 0.16, "triangle", 0.08);
+      mk(659, now + 0.10, 0.16, "triangle", 0.08);
+      mk(784, now + 0.20, 0.18, "triangle", 0.09);
+      mk(1047, now + 0.28, 0.55, "sine", 0.10);
+      mk(1568, now + 0.28, 0.55, "sine", 0.04);
+    } else if (kind === "great") {
+      // big triumphant flourish
+      mk(392, now, 0.13, "triangle", 0.08);
+      mk(523, now + 0.08, 0.13, "triangle", 0.08);
+      mk(659, now + 0.16, 0.13, "triangle", 0.09);
+      mk(784, now + 0.24, 0.16, "triangle", 0.10);
+      mk(1047, now + 0.36, 0.7, "sine", 0.11);
+      mk(1319, now + 0.36, 0.7, "sine", 0.07);
+      mk(1568, now + 0.44, 0.6, "sine", 0.05);
+    } else if (kind === "unlock") { mk(523, now, 0.15); mk(659, now + 0.12, 0.15); mk(784, now + 0.24, 0.15); mk(1047, now + 0.36, 0.4, "sine", 0.11); }
     else if (kind === "bad") { mk(190, now, 0.28, "sawtooth", 0.06); }
     else if (kind === "click") { mk(520, now, 0.05, "square", 0.04); }
   } catch (e) {}
@@ -194,43 +208,46 @@ const Q = {
 
 /* ============ FX ============ */
 function Confetti() {
-  const cols = ["#fbbf24", "#f472b6", "#34d399", "#60a5fa", "#a78bfa", "#f87171", "#facc15"];
-  const pieces = Array.from({ length: 50 }, (_, i) => ({ l: Math.random() * 100, c: cols[i % cols.length], d: Math.random() * 0.3, dur: 1.5 + Math.random() * 1.3, w: 6 + Math.random() * 8, rot: Math.random() * 360 }));
+  const cols = ["#fbbf24", "#fcd34d", "#f59e0b", "#fde68a", "#eab308", "#d4af37", "#fffbeb"];
+  const pieces = Array.from({ length: 54 }, (_, i) => ({ l: Math.random() * 100, c: cols[i % cols.length], d: Math.random() * 0.3, dur: 1.5 + Math.random() * 1.3, w: 6 + Math.random() * 9, rot: Math.random() * 360 }));
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden z-30">
-      {pieces.map((p, i) => (<div key={i} style={{ position: "absolute", top: "-20px", left: `${p.l}%`, width: p.w, height: p.w * 0.55, background: p.c, borderRadius: 2, transform: `rotate(${p.rot}deg)`, animation: `cf ${p.dur}s ${p.d}s ease-in forwards` }} />))}
+      {pieces.map((p, i) => (<div key={i} style={{ position: "absolute", top: "-20px", left: `${p.l}%`, width: p.w, height: p.w * 0.55, background: p.c, borderRadius: 2, transform: `rotate(${p.rot}deg)`, boxShadow: "0 0 6px rgba(251,191,36,0.6)", animation: `cf ${p.dur}s ${p.d}s ease-in forwards` }} />))}
     </div>
   );
+}
+function GoldFlash() {
+  return <div className="pointer-events-none absolute inset-0 z-20" style={{ background: "radial-gradient(circle at 50% 42%, rgba(253,224,71,0.6), rgba(251,191,36,0.18) 42%, rgba(0,0,0,0) 70%)", animation: "shine 0.9s ease-out forwards" }} />;
 }
 function PlayingCard({ c, small, idx = 0, anim }) {
   const red = c.s === 1 || c.s === 2;
   const sz = small ? "w-9 h-12 text-base" : "w-11 h-16 text-xl sm:w-12";
   return (
     <div className={`${sz} rounded-lg bg-white flex flex-col items-center justify-center font-black leading-none`}
-      style={{ color: red ? "#e11d48" : "#1e293b", animation: anim ? `dealin 0.4s ${idx * 0.07}s both` : undefined, boxShadow: "0 4px 0 rgba(0,0,0,0.18)" }}>
+      style={{ color: red ? "#dc2626" : "#1e293b", animation: anim ? `dealin 0.4s ${idx * 0.07}s both` : undefined, boxShadow: "0 4px 0 rgba(0,0,0,0.35)" }}>
       <span>{rs(c.r)}</span><span className="text-sm">{SUITS[c.s]}</span>
     </div>
   );
 }
-function CardBack() { return <div className="w-11 h-16 sm:w-12 rounded-lg" style={{ background: "repeating-linear-gradient(45deg,#7c3aed,#7c3aed 5px,#a855f7 5px,#a855f7 10px)", boxShadow: "0 4px 0 rgba(0,0,0,0.18)" }} />; }
-function EmptySlot() { return <div className="w-11 h-16 sm:w-12 rounded-lg border-2 border-dashed border-white/25" />; }
-const POS = ["You 😎", "Lefty", "Tex", "Big Dee"];
+function CardBack() { return <div className="w-11 h-16 sm:w-12 rounded-lg" style={{ background: "repeating-linear-gradient(45deg,#1c1917,#1c1917 5px,#3f3f46 5px,#3f3f46 10px)", border: "1px solid rgba(251,191,36,0.4)", boxShadow: "0 4px 0 rgba(0,0,0,0.35)" }} />; }
+function EmptySlot() { return <div className="w-11 h-16 sm:w-12 rounded-lg border-2 border-dashed border-amber-300/25" />; }
+const POS = ["You", "Lefty", "Tex", "Big Dee"];
 
 function ComboMeter({ streak }) {
   const tier = streak >= 9 ? { n: "INFERNO 🔥🔥🔥", g: "linear-gradient(90deg,#f59e0b,#ef4444,#f43f5e)" }
     : streak >= 6 ? { n: "BLAZING 🔥🔥", g: "linear-gradient(90deg,#fbbf24,#fb923c)" }
     : streak >= 3 ? { n: "HOT 🔥", g: "linear-gradient(90deg,#fde047,#fbbf24)" }
-    : streak >= 1 ? { n: "Warming up…", g: "linear-gradient(90deg,#c4b5fd,#a78bfa)" }
-    : { n: "Build a streak!", g: "#475569" };
+    : streak >= 1 ? { n: "Warming up…", g: "linear-gradient(90deg,#fde68a,#fcd34d)" }
+    : { n: "Build a streak!", g: "#3f3f46" };
   const fill = Math.min(streak, 9) / 9 * 100;
   return (
-    <div className="bg-black/25 rounded-full px-3 py-1.5 flex items-center gap-2">
+    <div className="bg-black/40 rounded-full px-3 py-1.5 flex items-center gap-2 border border-amber-500/20">
       <span className="text-white text-[11px] font-black whitespace-nowrap w-28 shrink-0">{tier.n}</span>
-      <div className="flex-1 h-3 bg-black/30 rounded-full overflow-hidden relative">
+      <div className="flex-1 h-3 bg-black/50 rounded-full overflow-hidden relative">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${fill}%`, background: tier.g }} />
         {streak > 0 && <span className="absolute top-1/2 -translate-y-1/2 text-xs" style={{ left: `calc(${fill}% - 10px)`, transition: "left 0.5s" }}>🔥</span>}
       </div>
-      <span className="text-white text-xs font-black w-6 text-right shrink-0">×{streak}</span>
+      <span className="text-amber-300 text-xs font-black w-6 text-right shrink-0">×{streak}</span>
     </div>
   );
 }
@@ -241,15 +258,17 @@ const STYLE = `
 @keyframes shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-10px)}30%{transform:translateX(10px)}45%{transform:translateX(-7px)}60%{transform:translateX(7px)}75%{transform:translateX(-3px)}}
 @keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-7px) rotate(2deg)}}
 @keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
-@keyframes bgshift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes floatup{0%{transform:translate(-50%,0) scale(.5);opacity:0}20%{transform:translate(-50%,-8px) scale(1.2);opacity:1}100%{transform:translate(-50%,-80px) scale(1);opacity:0}}
 @keyframes toast{0%{transform:translate(-50%,-30px) scale(.7);opacity:0}15%{transform:translate(-50%,0) scale(1.05);opacity:1}85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-20px);opacity:0}}
+@keyframes shine{0%{opacity:0}22%{opacity:1}100%{opacity:0}}
 `;
-const BG = { background: "linear-gradient(135deg,#4c1d95,#7e22ce,#be185d,#7e22ce)", backgroundSize: "300% 300%", animation: "bgshift 14s ease infinite" };
+const BG = { background: "radial-gradient(circle at 50% 18%, #0d5238, #073a27 45%, #04150d 80%)" };
+const GOLD_BTN = "bg-gradient-to-b from-amber-300 to-yellow-600 text-stone-900";
+const PANEL = "bg-black/45 backdrop-blur rounded-3xl border-2 border-amber-500/25 shadow-2xl";
 const Avatar = ({ skin, mood, name, size = "text-4xl" }) => (
   <div className="flex flex-col items-center shrink-0">
     <span className={size} style={{ animation: "bob 2.5s ease-in-out infinite" }}>{skin.f[mood] || skin.f.idle}</span>
-    {name && <span className="text-white text-[10px] font-black -mt-0.5 max-w-[70px] truncate">{name}</span>}
+    {name && <span className="text-amber-300 text-[10px] font-black -mt-0.5 max-w-[70px] truncate">{name}</span>}
   </div>
 );
 
@@ -294,6 +313,7 @@ function App() {
   }, [screen, blitz, timeLeft]);
 
   const curSkin = SKINS.find((s) => s.id === skin) || SKINS[0];
+  const who = (i) => (i === 0 ? (name || "You") : POS[i]);
   const freshRound = useCallback((m, p, d) => { setRound(deal(m, p, d)); setPickv(null); setRevealed(false); setMood("idle"); setMsg(pick(Q.ask[m])); }, []);
   const nextRound = useCallback(() => freshRound(mode, players, diff), [mode, players, diff, freshRound]);
   const start = () => { setStats({ score: 0, streak: 0, best: 0, correct: 0, total: 0 }); setTimeLeft(60); setShieldUsed(false); freshRound(mode, players, diff); setScreen("play"); };
@@ -356,22 +376,22 @@ function App() {
   const lvl = unlockedCount(xp);
   const nextSkin = SKINS.find((s) => s.xp > xp);
 
-  if (screen === "boot") return (<div className="min-h-[640px] w-full flex items-center justify-center" style={BG}><style>{STYLE}</style><div className="text-white font-black text-xl animate-pulse">🃏 Shuffling the deck…</div></div>);
+  if (screen === "boot") return (<div className="min-h-[640px] w-full flex items-center justify-center" style={BG}><style>{STYLE}</style><div className="text-amber-300 font-black text-xl animate-pulse">🃏 Shuffling the deck…</div></div>);
 
   if (screen === "login") return (
     <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG}>
       <style>{STYLE}</style>
-      <div className="bg-black/25 backdrop-blur rounded-3xl p-7 max-w-sm w-full border-2 border-white/15 shadow-2xl text-center">
+      <div className={`${PANEL} p-7 max-w-sm w-full text-center`}>
         <span className="text-6xl inline-block" style={{ animation: "bob 2.5s ease-in-out infinite" }}>{curSkin.f.idle}</span>
-        <h1 className="text-4xl font-black text-white mt-2 leading-none">POKER<span className="text-amber-300"> GOD</span></h1>
-        <p className="text-pink-200 text-[11px] mt-1.5 font-black uppercase tracking-[0.3em] mb-5">The Art of the Read</p>
+        <h1 className="text-4xl font-black text-white mt-2 leading-none" style={{ textShadow: "0 2px 14px rgba(251,191,36,0.4)" }}>POKER<span className="text-amber-300"> GOD</span></h1>
+        <p className="text-amber-200 text-[11px] mt-1.5 font-black uppercase tracking-[0.3em] mb-5">The Art of the Read</p>
         <p className="text-white font-bold mb-3">{name ? "Change your name, legend?" : "What should we call you, legend?"}</p>
         <input value={nameInput} onChange={(e) => setNameInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") confirmName(); }}
           maxLength={16} placeholder="Your screen name"
-          className="w-full text-center px-4 py-3 rounded-2xl font-black text-purple-900 text-lg outline-none bg-white mb-2 placeholder:text-purple-300" />
+          className="w-full text-center px-4 py-3 rounded-2xl font-black text-stone-900 text-lg outline-none bg-white mb-2 placeholder:text-stone-400" />
         <p className="text-white/50 text-[11px] mb-5">{nameInput.trim().length}/16 · you can change this anytime</p>
         <button onClick={confirmName} disabled={!nameInput.trim()}
-          className={`w-full py-4 rounded-2xl font-black text-xl shadow-xl transition ${nameInput.trim() ? "bg-gradient-to-r from-amber-400 to-pink-500 text-white active:scale-95 hover:brightness-110" : "bg-white/20 text-white/40"}`}>
+          className={`w-full py-4 rounded-2xl font-black text-xl shadow-xl transition ${nameInput.trim() ? `${GOLD_BTN} active:scale-95 hover:brightness-110` : "bg-white/15 text-white/40"}`}>
           🎲 Enter the Table
         </button>
       </div>
@@ -383,7 +403,7 @@ function App() {
     const prog = nextSkin ? Math.max(0, Math.min(100, ((xp - prevX) / (nextSkin.xp - prevX)) * 100)) : 100;
     const Opt = ({ active, onClick, emoji, title, sub }) => (
       <button onClick={() => { ping("click", muted); onClick(); }}
-        className={`text-left p-3 rounded-2xl border-2 transition active:scale-95 ${active ? "bg-white border-white text-purple-900 shadow-lg scale-[1.02]" : "bg-white/10 border-white/20 text-white hover:bg-white/15"}`}>
+        className={`text-left p-3 rounded-2xl border-2 transition active:scale-95 ${active ? "bg-amber-400 border-amber-300 text-stone-900 shadow-lg scale-[1.02]" : "bg-white/5 border-white/15 text-white hover:bg-white/10"}`}>
         <div className="font-black text-sm flex items-center gap-2"><span className="text-lg">{emoji}</span>{title}</div>
         {sub && <div className="text-xs opacity-80 ml-7">{sub}</div>}
       </button>
@@ -391,20 +411,20 @@ function App() {
     return (
       <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG}>
         <style>{STYLE}</style>
-        <div className="bg-black/25 backdrop-blur rounded-3xl p-6 max-w-md w-full border-2 border-white/15 shadow-2xl">
+        <div className={`${PANEL} p-6 max-w-md w-full`}>
           <div className="text-center mb-1"><span className="text-5xl inline-block" style={{ animation: "bob 2.5s ease-in-out infinite" }}>{curSkin.f.idle}</span></div>
-          <h1 className="text-4xl font-black text-white text-center tracking-tight leading-none">POKER<span className="text-amber-300"> GOD</span></h1>
-          <p className="text-pink-200 text-center text-[11px] mt-1.5 mb-3 font-black uppercase tracking-[0.3em]">The Art of the Read</p>
+          <h1 className="text-4xl font-black text-white text-center tracking-tight leading-none" style={{ textShadow: "0 2px 14px rgba(251,191,36,0.4)" }}>POKER<span className="text-amber-300"> GOD</span></h1>
+          <p className="text-amber-200 text-center text-[11px] mt-1.5 mb-3 font-black uppercase tracking-[0.3em]">The Art of the Read</p>
           <div className="flex justify-center gap-2 mb-4">
             <button onClick={() => { ping("click", muted); setNameInput(name); setScreen("login"); }}
-              className="bg-white/10 border border-white/20 text-white text-xs font-black px-3 py-1.5 rounded-full active:scale-95 transition">👤 {name} ✏️</button>
+              className="bg-white/5 border border-amber-500/25 text-amber-200 text-xs font-black px-3 py-1.5 rounded-full active:scale-95 transition">👤 {name} ✏️</button>
             <button onClick={() => { ping("click", muted); shareGame(); }}
-              className="bg-white/10 border border-white/20 text-white text-xs font-black px-3 py-1.5 rounded-full active:scale-95 transition">🔗 Share</button>
+              className="bg-white/5 border border-amber-500/25 text-amber-200 text-xs font-black px-3 py-1.5 rounded-full active:scale-95 transition">🔗 Share</button>
           </div>
-          {note && <div className="text-center mb-3"><span className="inline-block bg-emerald-400 text-emerald-950 text-xs font-black px-4 py-1.5 rounded-full" style={{ animation: "pop 0.3s both" }}>{note}</span></div>}
-          <div className="bg-black/20 rounded-2xl p-3 mb-4">
+          {note && <div className="text-center mb-3"><span className="inline-block bg-amber-400 text-stone-900 text-xs font-black px-4 py-1.5 rounded-full" style={{ animation: "pop 0.3s both" }}>{note}</span></div>}
+          <div className="bg-black/30 rounded-2xl p-3 mb-4 border border-amber-500/15">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-white/80 text-[11px] font-black uppercase tracking-widest">🎭 Locker · Lvl {lvl}</span>
+              <span className="text-amber-200/90 text-[11px] font-black uppercase tracking-widest">🎭 Locker · Lvl {lvl}</span>
               <span className="text-amber-300 text-[11px] font-black">{xp} XP</span>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -412,21 +432,21 @@ function App() {
                 const open = s.xp <= xp, sel = s.id === skin;
                 return (
                   <button key={s.id} disabled={!open} onClick={() => { ping("click", muted); setSkin(s.id); }}
-                    className={`relative shrink-0 w-16 rounded-xl border-2 p-1.5 text-center transition ${sel ? "bg-white border-white" : open ? "bg-white/10 border-white/30 active:scale-90" : "bg-black/30 border-white/10 cursor-default"}`}>
+                    className={`relative shrink-0 w-16 rounded-xl border-2 p-1.5 text-center transition ${sel ? "bg-amber-400 border-amber-300" : open ? "bg-white/5 border-amber-500/25 active:scale-90" : "bg-black/40 border-white/10 cursor-default"}`}>
                     <div className="text-2xl" style={!open ? { filter: "grayscale(1)", opacity: 0.4 } : undefined}>{s.f.idle}</div>
                     {!open && <span className="absolute top-0.5 right-1 text-[11px]">🔒</span>}
-                    <div className={`text-[9px] font-black leading-tight ${sel ? "text-purple-900" : open ? "text-white" : "text-amber-300/90"}`}>{open ? s.name : `${s.xp} XP`}</div>
+                    <div className={`text-[9px] font-black leading-tight ${sel ? "text-stone-900" : open ? "text-white" : "text-amber-300/90"}`}>{open ? s.name : `${s.xp} XP`}</div>
                   </button>
                 );
               })}
             </div>
             {nextSkin ? (
               <div className="mt-2">
-                <div className="h-2 bg-black/30 rounded-full overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-pink-500 transition-all" style={{ width: `${prog}%` }} /></div>
+                <div className="h-2 bg-black/50 rounded-full overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-yellow-600 transition-all" style={{ width: `${prog}%` }} /></div>
                 <div className="text-white/60 text-[10px] mt-1 font-bold">Next: {nextSkin.f.idle} {nextSkin.name} at {nextSkin.xp} XP</div>
               </div>
             ) : <div className="text-amber-300 text-[10px] mt-2 font-black">🏆 Everything unlocked, legend!</div>}
-            <div className="mt-2 bg-amber-400/15 border border-amber-300/30 rounded-xl p-2 text-center">
+            <div className="mt-2 bg-amber-400/10 border border-amber-300/30 rounded-xl p-2 text-center">
               <div className="text-amber-300 text-[11px] font-black">⚡ {curSkin.name}'s Power: {curSkin.perkName}</div>
               <div className="text-white/85 text-[10px] font-semibold">{curSkin.perkDesc}</div>
             </div>
@@ -440,7 +460,7 @@ function App() {
             <div className="grid grid-cols-3 gap-2 mb-3">
               {[2, 3, 4].map((n) => (
                 <button key={n} onClick={() => { ping("click", muted); setPlayers(n); }}
-                  className={`py-2.5 rounded-2xl border-2 font-black text-sm transition active:scale-95 ${players === n ? "bg-white border-white text-purple-900" : "bg-white/10 border-white/20 text-white"}`}>
+                  className={`py-2.5 rounded-2xl border-2 font-black text-sm transition active:scale-95 ${players === n ? "bg-amber-400 border-amber-300 text-stone-900" : "bg-white/5 border-white/15 text-white"}`}>
                   {n === 2 ? "Heads Up" : `${n} Players`}
                 </button>
               ))}
@@ -449,16 +469,16 @@ function App() {
           <div className="grid grid-cols-3 gap-2 mb-3">
             {Object.entries(DIFF).map(([d, info]) => (
               <button key={d} onClick={() => { ping("click", muted); setDiff(d); }}
-                className={`py-2.5 rounded-2xl border-2 font-black transition active:scale-95 ${diff === d ? "bg-white border-white text-purple-900" : "bg-white/10 border-white/20 text-white"}`}>
+                className={`py-2.5 rounded-2xl border-2 font-black transition active:scale-95 ${diff === d ? "bg-amber-400 border-amber-300 text-stone-900" : "bg-white/5 border-white/15 text-white"}`}>
                 <div className="text-sm">{info.label}</div><div className="text-[10px] opacity-70">{info.m} pts</div>
               </button>
             ))}
           </div>
           <button onClick={() => { ping("click", muted); setBlitz((b) => !b); }}
-            className={`w-full py-3 rounded-2xl border-2 text-sm font-black mb-4 transition active:scale-95 ${blitz ? "bg-amber-400 border-amber-300 text-amber-950" : "bg-white/10 border-white/20 text-white"}`}>
+            className={`w-full py-3 rounded-2xl border-2 text-sm font-black mb-4 transition active:scale-95 ${blitz ? "bg-amber-400 border-amber-300 text-stone-900" : "bg-white/5 border-white/15 text-white"}`}>
             ⚡ {blitz ? "BLITZ ON — 60-second sprint!" : "Blitz Mode: off"}
           </button>
-          <button onClick={start} className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-400 to-pink-500 text-white font-black text-xl shadow-xl active:scale-95 transition hover:brightness-110">🎲 DEAL ME IN</button>
+          <button onClick={start} className={`w-full py-4 rounded-2xl ${GOLD_BTN} font-black text-xl shadow-xl active:scale-95 transition hover:brightness-110`}>🎲 DEAL ME IN</button>
         </div>
       </div>
     );
@@ -469,37 +489,38 @@ function App() {
     return (
       <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG}>
         <style>{STYLE}</style>
-        <div className="relative bg-black/25 backdrop-blur rounded-3xl p-7 max-w-sm w-full border-2 border-white/15 shadow-2xl text-center overflow-hidden">
+        <div className={`relative ${PANEL} p-7 max-w-sm w-full text-center overflow-hidden`}>
           {stats.correct > 0 && <Confetti />}
           <div className="text-5xl mb-1" style={{ animation: "pop 0.5s both" }}>⏰</div>
           <h2 className="text-3xl font-black text-white">TIME!</h2>
-          <p className="text-pink-200 text-sm mb-4 font-semibold">{name} · {rank} · +{stats.score} XP</p>
-          <div className="text-6xl font-black text-amber-300 mb-1" style={{ animation: "pop 0.5s 0.1s both" }}>{stats.score}</div>
+          <p className="text-amber-200 text-sm mb-4 font-semibold">{name} · {rank} · +{stats.score} XP</p>
+          <div className="text-6xl font-black text-amber-300 mb-1" style={{ animation: "pop 0.5s 0.1s both", textShadow: "0 2px 16px rgba(251,191,36,0.5)" }}>{stats.score}</div>
           <div className="text-white/60 text-xs uppercase tracking-widest mb-5 font-bold">points this run</div>
           <div className="grid grid-cols-3 gap-2 mb-6 text-white">
-            <div className="bg-white/10 rounded-2xl py-3"><div className="text-xl font-black">{stats.correct}/{stats.total}</div><div className="text-[10px] text-pink-200">nailed</div></div>
-            <div className="bg-white/10 rounded-2xl py-3"><div className="text-xl font-black">{acc}%</div><div className="text-[10px] text-pink-200">accuracy</div></div>
-            <div className="bg-white/10 rounded-2xl py-3"><div className="text-xl font-black">{stats.best}🔥</div><div className="text-[10px] text-pink-200">best run</div></div>
+            <div className="bg-white/5 rounded-2xl py-3 border border-amber-500/15"><div className="text-xl font-black">{stats.correct}/{stats.total}</div><div className="text-[10px] text-amber-200">nailed</div></div>
+            <div className="bg-white/5 rounded-2xl py-3 border border-amber-500/15"><div className="text-xl font-black">{acc}%</div><div className="text-[10px] text-amber-200">accuracy</div></div>
+            <div className="bg-white/5 rounded-2xl py-3 border border-amber-500/15"><div className="text-xl font-black">{stats.best}🔥</div><div className="text-[10px] text-amber-200">best run</div></div>
           </div>
-          <button onClick={start} className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-pink-500 text-white font-black mb-2 active:scale-95 transition">🔁 Run It Back</button>
-          <button onClick={() => { ping("click", muted); shareScore(); }} className="w-full py-3 rounded-2xl bg-white/15 border-2 border-white/25 text-white font-black mb-2 active:scale-95 transition">🔗 Share My Score</button>
-          {note && <div className="mb-2"><span className="inline-block bg-emerald-400 text-emerald-950 text-xs font-black px-4 py-1.5 rounded-full" style={{ animation: "pop 0.3s both" }}>{note}</span></div>}
-          <button onClick={() => setScreen("menu")} className="w-full py-2 text-white/70 text-sm hover:text-white font-semibold">← Menu (Lvl {lvl} · {xp} XP)</button>
+          <button onClick={start} className={`w-full py-3 rounded-2xl ${GOLD_BTN} font-black mb-2 active:scale-95 transition`}>🔁 Run It Back</button>
+          <button onClick={() => { ping("click", muted); shareScore(); }} className="w-full py-3 rounded-2xl bg-white/10 border-2 border-amber-500/30 text-amber-200 font-black mb-2 active:scale-95 transition">🔗 Share My Score</button>
+          {note && <div className="mb-2"><span className="inline-block bg-amber-400 text-stone-900 text-xs font-black px-4 py-1.5 rounded-full" style={{ animation: "pop 0.3s both" }}>{note}</span></div>}
+          <button onClick={() => setScreen("menu")} className="w-full py-2 text-white/60 text-sm hover:text-white font-semibold">← Menu (Lvl {lvl} · {xp} XP)</button>
         </div>
       </div>
     );
   }
 
   const lowTime = blitz && timeLeft <= 10;
-  const Chip = ({ children, hot }) => (<span className={`flex items-center gap-1 px-3 py-1.5 rounded-full font-black text-sm ${hot ? "bg-rose-500 text-white animate-pulse" : "bg-black/30 text-white"}`}>{children}</span>);
+  const Chip = ({ children, hot }) => (<span className={`flex items-center gap-1 px-3 py-1.5 rounded-full font-black text-sm ${hot ? "bg-rose-600 text-white animate-pulse" : "bg-black/40 text-white border border-amber-500/20"}`}>{children}</span>);
   return (
-    <div className="min-h-[640px] w-full p-3 sm:p-5 relative overflow-hidden" style={{ ...BG, animation: shake ? "shake 0.55s, bgshift 14s ease infinite" : "bgshift 14s ease infinite" }}>
+    <div className="min-h-[640px] w-full p-3 sm:p-5 relative overflow-hidden" style={{ ...BG, animation: shake ? "shake 0.55s" : undefined }}>
       <style>{STYLE}</style>
+      {popc > 0 && <GoldFlash key={"f" + popc} />}
       {popc > 0 && <Confetti key={popc} />}
-      {floatPts && <div key={floatPts.k} className="absolute left-1/2 top-[32%] z-40 pointer-events-none text-4xl font-black" style={{ color: floatPts.color, animation: "floatup 1.1s ease-out forwards", textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{floatPts.text}</div>}
+      {floatPts && <div key={floatPts.k} className="absolute left-1/2 top-[32%] z-40 pointer-events-none text-4xl font-black" style={{ color: floatPts.color, animation: "floatup 1.1s ease-out forwards", textShadow: "0 2px 10px rgba(0,0,0,0.6)" }}>{floatPts.text}</div>}
       {unlock && (
         <div className="absolute left-1/2 top-16 z-50 pointer-events-none" style={{ animation: "toast 3.6s ease-out forwards" }}>
-          <div className="bg-gradient-to-r from-amber-400 to-pink-500 text-white font-black px-5 py-3 rounded-2xl shadow-2xl text-center border-2 border-white/40">
+          <div className="bg-gradient-to-b from-amber-300 to-yellow-600 text-stone-900 font-black px-5 py-3 rounded-2xl shadow-2xl text-center border-2 border-amber-200">
             <div className="text-3xl">{unlock.f.idle}</div><div className="text-sm">NEW CHARACTER UNLOCKED!</div><div className="text-lg">{unlock.name}</div>
           </div>
         </div>
@@ -510,34 +531,34 @@ function App() {
           {blitz && <Chip hot={lowTime}>⏰ {timeLeft}s</Chip>}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setMuted((m) => !m)} className="px-2.5 py-1.5 rounded-full bg-black/30 text-white text-sm active:scale-90 transition">{muted ? "🔇" : "🔊"}</button>
-          <button onClick={() => setScreen("menu")} className="px-3 py-1.5 rounded-full bg-black/30 text-white text-xs font-bold active:scale-90 transition">↩ Menu</button>
+          <button onClick={() => setMuted((m) => !m)} className="px-2.5 py-1.5 rounded-full bg-black/40 text-white text-sm active:scale-90 transition border border-amber-500/20">{muted ? "🔇" : "🔊"}</button>
+          <button onClick={() => setScreen("menu")} className="px-3 py-1.5 rounded-full bg-black/40 text-white text-xs font-bold active:scale-90 transition border border-amber-500/20">↩ Menu</button>
         </div>
       </div>
       <div className="max-w-3xl mx-auto mb-2 relative z-10"><ComboMeter streak={stats.streak} /></div>
       <div className="flex items-center gap-2 max-w-3xl mx-auto mb-3 relative z-10">
         <Avatar skin={curSkin} mood={mood} name={name} />
-        <div className="bg-white rounded-2xl rounded-bl-none px-4 py-2 shadow-lg font-bold text-purple-900 text-sm" style={{ animation: "pop 0.3s both" }}>{msg}</div>
-        <span className="ml-auto shrink-0 bg-black/30 text-amber-200 text-[10px] font-black px-2.5 py-1 rounded-full whitespace-nowrap">⚡ {curSkin.perkName}</span>
+        <div className="bg-white rounded-2xl rounded-bl-none px-4 py-2 shadow-lg font-bold text-stone-900 text-sm" style={{ animation: "pop 0.3s both" }}>{msg}</div>
+        <span className="ml-auto shrink-0 bg-black/40 text-amber-300 text-[10px] font-black px-2.5 py-1 rounded-full whitespace-nowrap border border-amber-500/20">⚡ {curSkin.perkName}</span>
       </div>
       <div className="max-w-3xl mx-auto relative z-10">
-        <div className="text-center mb-2"><span className="text-white/70 text-xs uppercase tracking-widest font-black bg-black/20 px-3 py-1 rounded-full">🃏 Board · {round.mode === "showdown" ? "River" : round.street}</span></div>
+        <div className="text-center mb-2"><span className="text-amber-200/80 text-xs uppercase tracking-widest font-black bg-black/30 px-3 py-1 rounded-full border border-amber-500/15">🃏 Board · {round.mode === "showdown" ? "River" : round.street}</span></div>
         <div className="flex justify-center gap-1.5 sm:gap-2 mb-5 flex-wrap">
           {[0, 1, 2, 3, 4].map((i) => (round.board[i] ? <PlayingCard key={`${popc}-${i}`} c={round.board[i]} idx={i} anim /> : <EmptySlot key={i} />))}
         </div>
         {round.mode === "range"
-          ? <RangeView round={round} revealed={revealed} pickv={pickv} correct={correct} submit={submit} pop={popc} />
-          : <HandsView round={round} players={players} revealed={revealed} pickv={pickv} correct={correct} submit={submit} pop={popc} />}
+          ? <RangeView round={round} revealed={revealed} pickv={pickv} correct={correct} submit={submit} pop={popc} name={name} />
+          : <HandsView round={round} players={players} revealed={revealed} pickv={pickv} correct={correct} submit={submit} pop={popc} who={who} />}
         {revealed && (
           <div className="mt-5 text-center">
             {round.mode !== "range" && (
-              <p className="text-white font-bold text-sm mb-3 bg-black/20 inline-block px-4 py-1.5 rounded-full">
-                {round.winners.length > 1 ? `💸 Split: ${round.winners.map((i) => POS[i].split(" ")[0]).join(" & ")}` : `💰 ${POS[round.winners[0]].split(" ")[0]} ${round.mode === "showdown" ? "scoops it!" : "is the fave!"}`}
+              <p className="text-white font-bold text-sm mb-3 bg-black/30 inline-block px-4 py-1.5 rounded-full border border-amber-500/15">
+                {round.winners.length > 1 ? `💸 Split: ${round.winners.map((i) => who(i)).join(" & ")}` : `💰 ${who(round.winners[0])} ${round.mode === "showdown" ? "scoops it!" : "is the fave!"}`}
               </p>
             )}
             {!blitz
-              ? <div><button onClick={nextRound} className="px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-pink-500 text-white font-black text-lg shadow-xl active:scale-95 transition hover:brightness-110">Next Hand →</button></div>
-              : <p className="text-white/70 text-xs font-bold animate-pulse">⚡ dealing next…</p>}
+              ? <div><button onClick={nextRound} className={`px-7 py-3.5 rounded-2xl ${GOLD_BTN} font-black text-lg shadow-xl active:scale-95 transition hover:brightness-110`}>Next Hand →</button></div>
+              : <p className="text-amber-200/70 text-xs font-bold animate-pulse">⚡ dealing next…</p>}
           </div>
         )}
       </div>
@@ -545,24 +566,24 @@ function App() {
   );
 }
 
-function HandsView({ round, players, revealed, pickv, correct, submit, pop }) {
+function HandsView({ round, players, revealed, pickv, correct, submit, pop, who }) {
   return (
     <React.Fragment>
       <p className="text-center text-white font-black mb-3 text-lg drop-shadow">{revealed ? (correct ? "🎉 NAILED IT!" : "💀 WHIFFED!") : round.mode === "showdown" ? "👉 Who wins the pot?" : "👉 Who's the favorite?"}</p>
       <div className={`grid gap-3 ${players === 2 ? "grid-cols-2" : players === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
         {round.hands.map((hand, i) => {
           const isW = round.winners.includes(i), isP = pickv === i;
-          let cls = "bg-white/10 border-white/20";
-          if (revealed) cls = isW ? "bg-emerald-400/30 border-emerald-300 ring-4 ring-emerald-300/50" : isP ? "bg-rose-500/30 border-rose-300 ring-4 ring-rose-300/50" : "bg-black/20 border-white/10 opacity-50";
+          let cls = "bg-white/5 border-amber-500/20";
+          if (revealed) cls = isW ? "bg-emerald-500/25 border-emerald-300 ring-4 ring-emerald-300/40" : isP ? "bg-rose-600/25 border-rose-300 ring-4 ring-rose-300/40" : "bg-black/30 border-white/10 opacity-50";
           const sc = round.scores ? round.scores[i] : null, eq = round.equity ? round.equity[i] : null;
           return (
             <button key={i} disabled={revealed} onClick={() => submit(i)}
-              className={`p-3 rounded-2xl border-2 transition ${cls} ${!revealed ? "hover:scale-105 hover:border-white active:scale-95 cursor-pointer" : ""}`}>
-              <div className="flex items-center justify-between mb-2"><span className="text-white text-xs font-black">{POS[i]}</span>{revealed && isW && <span>✅</span>}{revealed && isP && !isW && <span>❌</span>}</div>
+              className={`p-3 rounded-2xl border-2 transition ${cls} ${!revealed ? "hover:scale-105 hover:border-amber-300 active:scale-95 cursor-pointer" : ""}`}>
+              <div className="flex items-center justify-between mb-2"><span className={`text-xs font-black truncate max-w-[80px] ${i === 0 ? "text-amber-300" : "text-white"}`}>{who(i)}</span>{revealed && isW && <span>✅</span>}{revealed && isP && !isW && <span>❌</span>}</div>
               <div className="flex justify-center gap-1.5">{hand.map((c, k) => <PlayingCard key={`${pop}-${k}`} c={c} small idx={k} anim />)}</div>
               {revealed && (<div className="mt-2">
                 {sc && <div className="text-white text-[11px] font-black leading-tight">{describe(sc)}</div>}
-                {eq != null && (<React.Fragment><div className="text-white text-sm font-black">{(eq * 100).toFixed(1)}%</div><div className="h-2 bg-black/30 rounded-full mt-1 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${eq * 100}%`, background: isW ? "linear-gradient(90deg,#6ee7b7,#34d399)" : "#f472b6" }} /></div></React.Fragment>)}
+                {eq != null && (<React.Fragment><div className="text-white text-sm font-black">{(eq * 100).toFixed(1)}%</div><div className="h-2 bg-black/40 rounded-full mt-1 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${eq * 100}%`, background: isW ? "linear-gradient(90deg,#6ee7b7,#34d399)" : "#94a3b8" }} /></div></React.Fragment>)}
               </div>)}
             </button>
           );
@@ -572,20 +593,20 @@ function HandsView({ round, players, revealed, pickv, correct, submit, pop }) {
   );
 }
 
-function RangeView({ round, revealed, pickv, correct, submit, pop }) {
+function RangeView({ round, revealed, pickv, correct, submit, pop, name }) {
   const heroMade = round.board.length >= 3 ? describe(evaluate7([...round.hero, ...round.board])) : null;
   const buckets = [{ id: "fav", label: "Favorite 💪", sub: ">56%" }, { id: "flip", label: "Coin Flip 🪙", sub: "44–56%" }, { id: "dog", label: "Underdog 🐶", sub: "<44%" }];
   return (
     <React.Fragment>
       <div className="flex items-center justify-center gap-4 sm:gap-6 mb-4">
         <div className="text-center">
-          <div className="text-pink-200 text-[10px] uppercase tracking-widest font-black mb-1">Your Hand</div>
+          <div className="text-amber-300 text-[10px] uppercase tracking-widest font-black mb-1 truncate max-w-[110px]">{name || "Your"} Hand</div>
           <div className="flex gap-1.5">{round.hero.map((c, k) => <PlayingCard key={`${pop}-${k}`} c={c} idx={k} anim />)}</div>
           {heroMade && <div className="text-white text-[11px] mt-1 font-bold">{heroMade}</div>}
         </div>
-        <div className="text-white font-black text-2xl drop-shadow">⚔️</div>
+        <div className="text-amber-300 font-black text-2xl drop-shadow">⚔️</div>
         <div className="text-center">
-          <div className="text-pink-200 text-[10px] uppercase tracking-widest font-black mb-1">Mystery Range</div>
+          <div className="text-amber-200 text-[10px] uppercase tracking-widest font-black mb-1">Mystery Range</div>
           <div className="flex gap-1.5"><CardBack /><CardBack /></div>
           <div className="text-amber-300 text-[11px] mt-1 font-black max-w-[120px]">{round.range}</div>
         </div>
@@ -594,21 +615,21 @@ function RangeView({ round, revealed, pickv, correct, submit, pop }) {
       <div className="grid grid-cols-3 gap-2">
         {buckets.map((b) => {
           const isW = round.bucket === b.id, isP = pickv === b.id;
-          let cls = "bg-white/10 border-white/20";
-          if (revealed) cls = isW ? "bg-emerald-400/30 border-emerald-300 ring-4 ring-emerald-300/50" : isP ? "bg-rose-500/30 border-rose-300 ring-4 ring-rose-300/50" : "bg-black/20 border-white/10 opacity-50";
+          let cls = "bg-white/5 border-amber-500/20";
+          if (revealed) cls = isW ? "bg-emerald-500/25 border-emerald-300 ring-4 ring-emerald-300/40" : isP ? "bg-rose-600/25 border-rose-300 ring-4 ring-rose-300/40" : "bg-black/30 border-white/10 opacity-50";
           return (
             <button key={b.id} disabled={revealed} onClick={() => submit(b.id)}
-              className={`p-3 rounded-2xl border-2 text-center transition ${cls} ${!revealed ? "hover:scale-105 hover:border-white active:scale-95 cursor-pointer" : ""}`}>
-              <div className="text-white font-black text-sm">{b.label}</div><div className="text-pink-200 text-[10px] font-bold">{b.sub}</div>
+              className={`p-3 rounded-2xl border-2 text-center transition ${cls} ${!revealed ? "hover:scale-105 hover:border-amber-300 active:scale-95 cursor-pointer" : ""}`}>
+              <div className="text-white font-black text-sm">{b.label}</div><div className="text-amber-200 text-[10px] font-bold">{b.sub}</div>
             </button>
           );
         })}
       </div>
       {revealed && (
         <div className="mt-4 text-center">
-          <div className="text-pink-200 text-sm font-bold">Your equity vs <span className="text-amber-300">{round.range}</span></div>
+          <div className="text-amber-200 text-sm font-bold">Your equity vs <span className="text-amber-300">{round.range}</span></div>
           <div className="text-4xl font-black text-white drop-shadow" style={{ animation: "pop 0.4s both" }}>{(round.equity * 100).toFixed(1)}%</div>
-          <div className="h-3 bg-black/30 rounded-full mt-2 max-w-xs mx-auto overflow-hidden"><div className="h-full rounded-full" style={{ width: `${round.equity * 100}%`, background: "linear-gradient(90deg,#fbbf24,#f472b6)" }} /></div>
+          <div className="h-3 bg-black/40 rounded-full mt-2 max-w-xs mx-auto overflow-hidden"><div className="h-full rounded-full" style={{ width: `${round.equity * 100}%`, background: "linear-gradient(90deg,#fde047,#f59e0b)" }} /></div>
         </div>
       )}
     </React.Fragment>
