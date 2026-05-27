@@ -84,17 +84,23 @@ function computeEquity(hands, board, iters) {
   }
   return wins.map((w) => w / iters);
 }
-function eqHeadsUp(hero, opp, board) {
-  const used = new Set([...hero, ...opp, ...board].map(key));
+// hero share vs a field of known opponents, given a partial board
+function eqVsField(hero, opps, board) {
+  const hands = [hero, ...opps];
+  const used = new Set([...hands.flat(), ...board].map(key));
   const rem = FULL.filter((c) => !used.has(key(c)));
   const need = 5 - board.length;
-  const score = (b) => { const d = cmp(evaluate7([...hero, ...b]), evaluate7([...opp, ...b])); return d > 0 ? 1 : d === 0 ? 0.5 : 0; };
-  if (need === 0) return score(board);
-  let win = 0, n = 0;
-  if (need === 1) { for (let i = 0; i < rem.length; i++) { win += score([...board, rem[i]]); n++; } }
-  else if (need === 2) { for (let i = 0; i < rem.length; i++) for (let j = i + 1; j < rem.length; j++) { win += score([...board, rem[i], rem[j]]); n++; } }
-  else { const IT = 2600; for (let it = 0; it < IT; it++) { win += score([...board, ...pickN(rem, need)]); n++; } }
-  return win / n;
+  const trial = (b) => {
+    let best = null, idxs = [];
+    for (let h = 0; h < hands.length; h++) { const sc = evaluate7([...hands[h], ...b]); if (best === null || cmp(sc, best) > 0) { best = sc; idxs = [h]; } else if (cmp(sc, best) === 0) idxs.push(h); }
+    return idxs.includes(0) ? 1 / idxs.length : 0;
+  };
+  if (need === 0) return trial(board);
+  let s = 0, n = 0;
+  if (need === 1) { for (let i = 0; i < rem.length; i++) { s += trial([...board, rem[i]]); n++; } }
+  else if (need === 2) { for (let i = 0; i < rem.length; i++) for (let j = i + 1; j < rem.length; j++) { s += trial([...board, rem[i], rem[j]]); n++; } }
+  else { const IT = 2200; for (let it = 0; it < IT; it++) { s += trial([...board, ...pickN(rem, need)]); n++; } }
+  return s / n;
 }
 const RANGES = [
   { name: "Any Pocket Pair", test: (a, b) => a.r === b.r },
@@ -105,6 +111,8 @@ const RANGES = [
   { name: "Premiums (JJ+, AK, AQ)", test: (a, b) => (a.r === b.r && a.r >= 11) || ([a.r, b.r].includes(14) && ([a.r, b.r].includes(13) || [a.r, b.r].includes(12))) },
   { name: "Total Wildcard 🃏", test: () => true },
 ];
+const RPRIORITY = ["Any Pocket Pair", "Premiums (JJ+, AK, AQ)", "Suited Connectors", "Broadway (T+)", "Any Ace", "Any Two Suited"];
+function rangeLabel(a, b) { for (const nm of RPRIORITY) { const rg = RANGES.find((r) => r.name === nm); if (rg && rg.test(a, b)) return nm; } return "Any two cards"; }
 function computeRangeEquity(hero, board, test, iters) {
   const used = new Set([...hero, ...board].map(key));
   const rem = FULL.filter((c) => !used.has(key(c)));
@@ -162,33 +170,36 @@ function dealRange(diff) {
 const MULT = { easy: 1, medium: 1.5, hard: 2 };
 const DIFF = { easy: { label: "Rookie 🐣", m: "×1" }, medium: { label: "Bull 🐂", m: "×1.5" }, hard: { label: "Pro 🦈", m: "×2" } };
 
-// Draft & Sweat — board is hidden; full 5 cards run out after lock-in
-function dealDraft(diff) {
+// Draft & Sweat — hidden board, multi-way capable
+function dealDraft(diff, players) {
+  const np = players || 2;
   const deck = shuffled();
   const pool = deck.slice(0, 5);
-  const opp = [deck[5], deck[6]];
-  const flop = [];
-  const fullBoard = deck.slice(7, 12);
-  const combos = [];
-  for (let i = 0; i < 5; i++) for (let j = i + 1; j < 5; j++) combos.push([i, j]);
+  let p = 5; const opps = [];
+  for (let k = 0; k < np - 1; k++) { opps.push([deck[p++], deck[p++]]); }
+  const fullBoard = deck.slice(p, p + 5);
+  const oppRanges = opps.map((o) => rangeLabel(o[0], o[1]));
+  const combos = []; for (let i = 0; i < 5; i++) for (let j = i + 1; j < 5; j++) combos.push([i, j]);
   let bestEq = 0;
-  const comboEq = combos.map((p) => {
-    const hero = [pool[p[0]], pool[p[1]]];
-    const d = cmp(evaluate7([...hero, ...fullBoard]), evaluate7([...opp, ...fullBoard]));
-    return { ij: p, outcome: d > 0 ? 1 : d === 0 ? 0.5 : 0 };
+  const comboEq = combos.map((pr) => {
+    const hero = [pool[pr[0]], pool[pr[1]]]; const all = [hero, ...opps];
+    let best = null, idxs = [];
+    for (let h = 0; h < all.length; h++) { const sc = evaluate7([...all[h], ...fullBoard]); if (best === null || cmp(sc, best) > 0) { best = sc; idxs = [h]; } else if (cmp(sc, best) === 0) idxs.push(h); }
+    const out = idxs.includes(0) ? (idxs.length === 1 ? 1 : 0.5) : 0;
+    return { ij: pr, outcome: out };
   });
   for (const c of comboEq) if (c.outcome > bestEq) bestEq = c.outcome;
-  return { mode: "draft", pool, opp, flop, fullBoard, comboEq, bestEq };
+  return { mode: "draft", pool, opps, oppRanges, flop: [], fullBoard, comboEq, bestEq };
 }
 
 /* ============ SKINS / XP ============ */
 const SKINS = [
   { id: 0, name: "Sharky", xp: 0, perk: "streak", perkName: "Hot Streak", perkDesc: "Combos pay extra — each streak step is worth more.", pitch: 1.0, f: { idle: "🦈", happy: "😎", wow: "🤩", sad: "😵" } },
-  { id: 1, name: "Lucky Cat", xp: 200, perk: "shield", perkName: "Nine Lives", perkDesc: "Your first miss each game won't break your streak.", pitch: 1.4, f: { idle: "🐱", happy: "😺", wow: "😻", sad: "🙀" } },
-  { id: 2, name: "Cool Croc", xp: 500, perk: "thick", perkName: "Thick Skin", perkDesc: "Even a wrong read still pays +5.", pitch: 0.8, f: { idle: "🐊", happy: "😏", wow: "🤯", sad: "😬" } },
+  { id: 1, name: "Lucky Cat", xp: 200, perk: "shield", perkName: "Nine Lives", perkDesc: "Your first miss each game won't break your streak.", pitch: 1.5, f: { idle: "🐱", happy: "😺", wow: "😻", sad: "🙀" } },
+  { id: 2, name: "Cool Croc", xp: 500, perk: "thick", perkName: "Thick Skin", perkDesc: "Even a wrong read still pays +5.", pitch: 0.7, f: { idle: "🐊", happy: "😏", wow: "🤯", sad: "😬" } },
   { id: 3, name: "Pro Panda", xp: 1000, perk: "brain", perkName: "Big Brain", perkDesc: "+25% points when playing on Pro difficulty.", pitch: 1.1, f: { idle: "🐼", happy: "😄", wow: "🤩", sad: "😞" } },
-  { id: 4, name: "Sir Fox", xp: 1800, perk: "double", perkName: "Lucky Find", perkDesc: "20% chance to double a correct guess.", pitch: 1.2, f: { idle: "🦊", happy: "😼", wow: "✨", sad: "🥺" } },
-  { id: 5, name: "Dragon Boss", xp: 3000, perk: "hoard", perkName: "Treasure Hoard", perkDesc: "+50% XP on everything — level up faster.", pitch: 0.6, f: { idle: "🐲", happy: "😈", wow: "🔥", sad: "😤" } },
+  { id: 4, name: "Sir Fox", xp: 1800, perk: "double", perkName: "Lucky Find", perkDesc: "20% chance to double a correct guess.", pitch: 1.25, f: { idle: "🦊", happy: "😼", wow: "✨", sad: "🥺" } },
+  { id: 5, name: "Dragon Boss", xp: 3000, perk: "hoard", perkName: "Treasure Hoard", perkDesc: "+50% XP on everything — level up faster.", pitch: 0.5, f: { idle: "🐲", happy: "😈", wow: "🔥", sad: "😤" } },
 ];
 const unlockedCount = (xp) => SKINS.filter((s) => s.xp <= xp).length;
 function loadProfile() { try { const r = localStorage.getItem("pokergod_profile"); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
@@ -219,23 +230,21 @@ function ping(kind, muted, n) {
     else if (kind === "bad") { tone(311.13, now, 0.22, "sawtooth", 0.07); tone(233.08, now + 0.18, 0.38, "sawtooth", 0.07); tone(155.56, now + 0.18, 0.45, "sine", 0.05); }
   } catch (e) {}
 }
+let _spoke = false;
+function primeSpeech() {
+  try { const s = window.speechSynthesis; if (!s || _spoke) return; const u = new SpeechSynthesisUtterance(" "); u.volume = 0; s.speak(u); _spoke = true; } catch (e) {}
+}
 function speak(text, muted, pitch) {
   if (muted) return;
   try {
-    const synth = window.speechSynthesis; if (!synth) return;
+    const s = window.speechSynthesis; if (!s) return;
     const clean = (text || "").replace(/[^A-Za-z0-9 ,.!?'-]/g, "").replace(/\s+/g, " ").trim();
     if (!clean) return;
-    synth.cancel();
-    setTimeout(() => {
-      try {
-        const u = new SpeechSynthesisUtterance(clean);
-        u.pitch = pitch || 1; u.rate = 1.04; u.volume = 1;
-        const vs = synth.getVoices();
-        const v = vs.find((x) => /en[-_]?US/i.test(x.lang)) || vs.find((x) => /^en/i.test(x.lang));
-        if (v) u.voice = v;
-        synth.speak(u);
-      } catch (e) {}
-    }, 480);
+    s.cancel();
+    const u = new SpeechSynthesisUtterance(clean);
+    u.pitch = pitch || 1; u.rate = 1.04; u.volume = 1;
+    const vs = s.getVoices(); const v = vs.find((x) => /en[-_]?US/i.test(x.lang)) || vs.find((x) => /^en/i.test(x.lang)); if (v) u.voice = v;
+    setTimeout(() => { try { s.resume(); s.speak(u); } catch (e) {} }, 280);
   } catch (e) {}
 }
 
@@ -264,8 +273,7 @@ function PlayingCard({ c, small, idx, anim }) {
   const col = red ? "#c8102e" : "#16181d";
   return (
     <div style={{ width: w, height: h, borderRadius: 9, position: "relative", flexShrink: 0,
-      background: "linear-gradient(155deg,#ffffff 0%,#f1ecdc 100%)",
-      border: "1.5px solid #c9a24e",
+      background: "linear-gradient(155deg,#ffffff 0%,#f1ecdc 100%)", border: "1.5px solid #c9a24e",
       boxShadow: "0 5px 0 rgba(0,0,0,.45), 0 7px 14px rgba(0,0,0,.5), inset 0 0 0 2px rgba(255,255,255,.65)",
       animation: anim ? ("dealin .4s " + ((idx || 0) * 0.07) + "s both") : undefined }}>
       <span style={{ position: "absolute", top: 3, left: 5, fontWeight: 900, fontSize: small ? 13 : 16, color: col, lineHeight: 1 }}>{rs(c.r)}</span>
@@ -300,11 +308,11 @@ function ComboMeter({ streak }) {
     </div>
   );
 }
-function EquityBar({ eq }) {
+function EquityBar({ eq, oppLabel }) {
   const hero = Math.round(eq * 100), opp = 100 - hero;
   return (
     <div className="max-w-xs mx-auto my-3">
-      <div className="flex justify-between text-[11px] font-black mb-1"><span className="text-amber-300">YOU {hero}%</span><span className="text-rose-300">OPP {opp}%</span></div>
+      <div className="flex justify-between text-[11px] font-black mb-1"><span className="text-amber-300">YOU {hero}%</span><span className="text-rose-300">{oppLabel || "OPP"} {opp}%</span></div>
       <div className="h-4 rounded-full overflow-hidden flex bg-black/60 border border-amber-500/30" style={{ boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6)" }}>
         <div className="h-full transition-all duration-300" style={{ width: hero + "%", background: "linear-gradient(90deg,#fde68a,#e9c45a)" }} />
         <div className="h-full transition-all duration-300" style={{ width: opp + "%", background: "linear-gradient(90deg,#9f1239,#e11d48)" }} />
@@ -377,7 +385,7 @@ function App() {
     if (p) { setXp(p.xp || 0); setSkin(p.skin || 0); if (p.name) setName(p.name); }
     setLoaded(true);
     setScreen(p && p.name ? "menu" : "login");
-    try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch (e) {}
+    try { if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices(); } catch (e) {}
   }, []);
   useEffect(() => { if (!loaded) return; const t = setTimeout(() => saveProfile({ xp, skin, name }), 600); return () => clearTimeout(t); }, [xp, skin, name, loaded]);
   useEffect(() => {
@@ -392,19 +400,19 @@ function App() {
   const say = (m, mood2) => { setMsg(m); if (mood2) setMood(mood2); speak(m, muted, curSkin.pitch); };
   const freshRound = useCallback((m, p, d) => {
     setDraftSel([]); setBoardShown(0); setSweating(false); setLiveEq(null);
-    if (m === "draft") { setRound(dealDraft(d)); setPickv(null); setRevealed(false); setMood("idle"); setMsg("Draft 2 cards… choose wisely 🃏"); return; }
+    if (m === "draft") { setRound(dealDraft(d, p)); setPickv(null); setRevealed(false); setMood("idle"); setMsg("Draft 2 cards… read the field 🃏"); return; }
     setRound(deal(m, p, d)); setPickv(null); setRevealed(false); setMood("idle"); setMsg(pick(Q.ask[m]));
   }, []);
   const nextRound = useCallback(() => freshRound(mode, players, diff), [mode, players, diff, freshRound]);
-  const start = () => { setStats({ score: 0, streak: 0, best: 0, correct: 0, total: 0 }); setTimeLeft(60); setShieldUsed(false); freshRound(mode, players, diff); setScreen("play"); };
-  const confirmName = () => { const v = nameInput.trim().slice(0, 16); if (!v) return; ping("click", muted); setName(v); saveProfile({ xp, skin, name: v }); setScreen("menu"); };
+  const start = () => { primeSpeech(); setStats({ score: 0, streak: 0, best: 0, correct: 0, total: 0 }); setTimeLeft(60); setShieldUsed(false); freshRound(mode, players, diff); setScreen("play"); };
+  const confirmName = () => { primeSpeech(); const v = nameInput.trim().slice(0, 16); if (!v) return; ping("click", muted); setName(v); saveProfile({ xp, skin, name: v }); setScreen("menu"); };
   const notify = (m) => { setNote(m); setTimeout(() => setNote(""), 1900); };
   const shareGame = async () => { const url = window.location.href; const text = "I'm playing POKER GOD 🃏 — think you can out-read me? Try it free:"; try { if (navigator.share) await navigator.share({ title: "POKER GOD", text, url }); else { await navigator.clipboard.writeText(url); notify("Link copied! 📋"); } } catch (e) { try { await navigator.clipboard.writeText(url); notify("Link copied! 📋"); } catch (e2) {} } };
   const shareScore = async () => { const url = window.location.href; const text = "I just scored " + stats.score + " in POKER GOD 🃏 (" + (stats.total ? Math.round(stats.correct / stats.total * 100) : 0) + "% reads). Bet you can't beat me 😏"; try { if (navigator.share) await navigator.share({ title: "POKER GOD", text, url }); else { await navigator.clipboard.writeText(text + " " + url); notify("Score copied! 📋"); } } catch (e) { try { await navigator.clipboard.writeText(text + " " + url); notify("Score copied! 📋"); } catch (e2) {} } };
 
   const toggleDraft = (i) => {
     if (sweating || revealed) return;
-    ping("click", muted);
+    primeSpeech(); ping("click", muted);
     setDraftSel((sel) => {
       if (sel.includes(i)) return sel.filter((x) => x !== i);
       if (sel.length < 2) return [...sel, i];
@@ -413,36 +421,40 @@ function App() {
   };
   const lockDraft = () => {
     if (draftSel.length !== 2 || sweating || revealed) return;
+    primeSpeech();
     const hero = [round.pool[draftSel[0]], round.pool[draftSel[1]]];
     setSweating(true); setMsg("Locked in. Run it! 🔥"); ping("lock", muted);
-    const startN = round.flop.length;
-    setBoardShown(startN);
-    setLiveEq(eqHeadsUp(hero, round.opp, round.fullBoard.slice(0, startN)));
-    let nn = startN;
+    setBoardShown(0);
+    setLiveEq(eqVsField(hero, round.opps, []));
+    let nn = 0;
     const step = () => {
-      if (nn < 5) { nn++; setBoardShown(nn); setLiveEq(eqHeadsUp(hero, round.opp, round.fullBoard.slice(0, nn))); ping("card", muted, nn); setTimeout(step, 820); }
+      if (nn < 5) { nn++; setBoardShown(nn); setLiveEq(eqVsField(hero, round.opps, round.fullBoard.slice(0, nn))); ping("card", muted, nn); setTimeout(step, 820); }
       else { setTimeout(() => resolveDraft(hero), 750); }
     };
     setTimeout(step, 650);
   };
   const resolveDraft = (hero) => {
-    const d = cmp(evaluate7([...hero, ...round.fullBoard]), evaluate7([...round.opp, ...round.fullBoard]));
-    const won = d > 0, tie = d === 0;
+    const all = [hero, ...round.opps];
+    let best = null, idxs = [];
+    for (let h = 0; h < all.length; h++) { const sc = evaluate7([...all[h], ...round.fullBoard]); if (best === null || cmp(sc, best) > 0) { best = sc; idxs = [h]; } else if (cmp(sc, best) === 0) idxs.push(h); }
+    const heroIn = idxs.includes(0);
+    const won = heroIn && idxs.length === 1, tie = heroIn && idxs.length > 1;
+    const success = heroIn;
     const lo = Math.min(draftSel[0], draftSel[1]), hi = Math.max(draftSel[0], draftSel[1]);
     const mine = round.comboEq.find((c) => c.ij[0] === lo && c.ij[1] === hi);
     const myOutcome = mine ? mine.outcome : 0;
     const greatDraft = myOutcome >= 1 || (round.bestEq < 1 && myOutcome >= 0.5);
     const perk = curSkin.perk;
     let gain = Math.round((greatDraft ? 15 : 5) * MULT[diff]);
-    if (won) gain += Math.round((10 + stats.streak * (perk === "streak" ? 8 : 5)) * MULT[diff]);
+    if (success) gain += Math.round((10 + stats.streak * (perk === "streak" ? 8 : 5)) * MULT[diff]);
     if (perk === "brain" && diff === "hard") gain = Math.round(gain * 1.25);
     if (perk === "double" && Math.random() < 0.2) gain *= 2;
     const xpGain = perk === "hoard" ? Math.round(gain * 1.5) : gain;
     setRevealed(true); setSweating(false);
-    setStats((s) => ({ score: s.score + gain, streak: won ? s.streak + 1 : 0, best: Math.max(s.best, won ? s.streak + 1 : s.streak), correct: s.correct + (won ? 1 : 0), total: s.total + 1 }));
-    if (won) { ping(stats.streak + 1 >= 3 ? "great" : "good", muted); setPopc((k) => k + 1); say(tie ? "Chopped it! 🤝" : greatDraft ? "Perfect draft!" : "You sweated it out! 💰", "wow"); }
-    else { ping("bad", muted); setShake(true); setTimeout(() => setShake(false), 550); say(greatDraft ? "Great draft, cruel river." : "Drew dead. Ouch.", "sad"); }
-    setFloatPts({ k: Date.now(), text: "+" + gain, color: won ? "#fcd34d" : "#cbd5e1" });
+    setStats((s) => ({ score: s.score + gain, streak: success ? s.streak + 1 : 0, best: Math.max(s.best, success ? s.streak + 1 : s.streak), correct: s.correct + (success ? 1 : 0), total: s.total + 1 }));
+    if (success) { ping(stats.streak + 1 >= 3 ? "great" : "good", muted); setPopc((k) => k + 1); say(tie ? "Chopped the pot! 🤝" : greatDraft ? "Perfect draft!" : "Scooped it! 💰", "wow"); }
+    else { ping("bad", muted); setShake(true); setTimeout(() => setShake(false), 550); say(greatDraft ? "Great draft, cruel river." : "The field got there. Ouch.", "sad"); }
+    setFloatPts({ k: Date.now(), text: "+" + gain, color: success ? "#fcd34d" : "#cbd5e1" });
     if (xpGain > 0) {
       const before = unlockedCount(xp), nx = xp + xpGain, after = unlockedCount(nx);
       setXp(nx);
@@ -453,6 +465,7 @@ function App() {
 
   const submit = (choice) => {
     if (revealed) return;
+    primeSpeech();
     setPickv(choice);
     const ok = mode === "range" ? choice === round.bucket : round.winners.includes(choice);
     const perk = curSkin.perk;
@@ -578,7 +591,7 @@ function App() {
             <Opt active={mode === "range"} onClick={() => setMode("range")} emoji="🦈" title="Hand vs Range" sub="You vs a mystery range." />
             <Opt active={mode === "draft"} onClick={() => setMode("draft")} emoji="🎴" title="Draft & Sweat" sub="Pick 2 of 5 — sweat the runout!" />
           </div>
-          {mode !== "range" && mode !== "draft" && (
+          {mode !== "range" && (
             <div className="grid grid-cols-3 gap-2 mb-3">
               {[2, 3, 4].map((nn) => (
                 <button key={nn} onClick={() => { ping("click", muted); setPlayers(nn); }}
@@ -669,7 +682,7 @@ function App() {
         <div className="felt rounded-3xl py-4 px-3 mb-5">
           <div className="flex justify-center gap-2 flex-wrap">
             {round.mode === "draft"
-              ? [0, 1, 2, 3, 4].map((i) => { const shownCount = revealed ? 5 : Math.max(round.flop.length, boardShown); return i < shownCount ? <PlayingCard key={popc + "-b-" + i} c={round.fullBoard[i]} idx={i} anim /> : <EmptySlot key={i} />; })
+              ? [0, 1, 2, 3, 4].map((i) => { const shownCount = revealed ? 5 : boardShown; return i < shownCount ? <PlayingCard key={popc + "-b-" + i} c={round.fullBoard[i]} idx={i} anim /> : <EmptySlot key={i} />; })
               : [0, 1, 2, 3, 4].map((i) => (round.board[i] ? <PlayingCard key={popc + "-" + i} c={round.board[i]} idx={i} anim /> : <EmptySlot key={i} />))}
           </div>
         </div>
@@ -768,17 +781,24 @@ function RangeView({ round, revealed, pickv, correct, submit, pop, name }) {
 function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft, liveEq, pop, name }) {
   const heroSel = draftSel.map((i) => round.pool[i]);
   const heroMade = revealed && heroSel.length === 2 ? describe(evaluate7([...heroSel, ...round.fullBoard])) : null;
-  const oppMade = revealed ? describe(evaluate7([...round.opp, ...round.fullBoard])) : null;
   const drafting = !sweating && !revealed;
+  const multi = round.opps.length > 1;
   return (
     <React.Fragment>
-      {drafting && <p className="text-center text-white font-black mb-1 text-lg drop-shadow">👉 Tap to pick 2 ({draftSel.length}/2)</p>}
-      {drafting && <p className="text-center text-amber-200/70 text-[11px] mb-3">Tap a chosen card to drop it · tap another to swap</p>}
-      {sweating && <p className="text-center text-amber-300 font-black mb-2 text-lg drop-shadow animate-pulse">🔥 Running it out…</p>}
-      {revealed && <p className="text-center text-white font-black mb-2 text-lg drop-shadow">Showdown!</p>}
-
       {drafting && (
         <React.Fragment>
+          <div className="text-center text-rose-300 text-[10px] uppercase tracking-widest font-black mb-2">{multi ? "The Field — Mystery Ranges" : "Opponent — Mystery Range"}</div>
+          <div className="flex justify-center gap-4 flex-wrap mb-4">
+            {round.opps.map((o, k) => (
+              <div key={k} className="text-center">
+                <div className="text-white/70 text-[10px] font-black mb-1">{POS[k + 1] || ("Opp " + (k + 1))}</div>
+                <div className="flex gap-1.5 justify-center"><CardBack small /><CardBack small /></div>
+                <div className="text-amber-300 text-[10px] mt-1 font-black max-w-[110px] leading-tight">{round.oppRanges[k]}</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-center text-white font-black mb-1 text-lg drop-shadow">👉 Tap to pick 2 ({draftSel.length}/2)</p>
+          <p className="text-center text-amber-200/70 text-[11px] mb-3">Tap a chosen card to drop it · tap another to swap</p>
           <div className="text-center text-amber-200 text-[10px] uppercase tracking-widest font-black mb-2">{name || "Your"} Draft Pool</div>
           <div className="flex justify-center gap-2 mb-4 flex-wrap">
             {round.pool.map((c, i) => {
@@ -802,27 +822,16 @@ function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft
 
       {(sweating || revealed) && (
         <React.Fragment>
-          <div className="flex items-start justify-center gap-6 sm:gap-10 mb-1">
-            <div className="text-center">
-              <div className="text-amber-300 text-[10px] uppercase tracking-widest font-black mb-1 truncate max-w-[110px]">{name || "You"}</div>
-              <div className="flex gap-1.5 justify-center">{heroSel.map((c, k) => <PlayingCard key={k} c={c} />)}</div>
-              {heroMade && <div className="text-white text-[11px] mt-1 font-black">{heroMade}</div>}
-            </div>
-            <div className="text-amber-300 font-black text-2xl drop-shadow mt-6">⚔️</div>
-            <div className="text-center">
-              <div className="text-rose-300 text-[10px] uppercase tracking-widest font-black mb-1">Opponent</div>
-              <div className="flex gap-1.5 justify-center">{revealed ? round.opp.map((c, k) => <PlayingCard key={k} c={c} idx={k} anim />) : <React.Fragment><CardBack /><CardBack /></React.Fragment>}</div>
-              {oppMade && <div className="text-white text-[11px] mt-1 font-black">{oppMade}</div>}
-            </div>
+          {sweating && <p className="text-center text-amber-300 font-black mb-2 text-lg drop-shadow animate-pulse">🔥 Running it out…</p>}
+          {revealed && <p className="text-center text-white font-black mb-2 text-lg drop-shadow">Showdown!</p>}
+          <div className="text-center mb-2">
+            <div className="text-amber-300 text-[10px] uppercase tracking-widest font-black mb-1 truncate">{name || "You"}</div>
+            <div className="flex gap-1.5 justify-center">{heroSel.map((c, k) => <PlayingCard key={k} c={c} />)}</div>
+            {heroMade && <div className="text-white text-[11px] mt-1 font-black">{heroMade}</div>}
           </div>
-          {liveEq != null && <EquityBar eq={liveEq} />}
-        </React.Fragment>
-      )}
-    </React.Fragment>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
-  </script>
-</body>
-</html>
+          <div className="text-amber-300 font-black text-xl drop-shadow text-center my-1">⚔️</div>
+          <div className="flex justify-center gap-4 flex-wrap mb-1">
+            {round.opps.map((o, k) => (
+              <div key={k} className="text-center">
+                <div className="text-rose-300 text-[10px] uppercase tracking-widest font-black mb-1">{POS[k + 1] || ("Opp " + (k + 1))}</div>
+                <div className="flex gap-1.5 justify-center">{revealed
