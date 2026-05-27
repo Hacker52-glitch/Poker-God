@@ -194,12 +194,12 @@ function dealDraft(diff, players) {
 
 /* ============ SKINS / XP ============ */
 const SKINS = [
-  { id: 0, name: "Sharky", xp: 0, perk: "streak", perkName: "Hot Streak", perkDesc: "Combos pay extra — each streak step is worth more.", pitch: 1.0, f: { idle: "🦈", happy: "😎", wow: "🤩", sad: "😵" } },
-  { id: 1, name: "Lucky Cat", xp: 200, perk: "shield", perkName: "Nine Lives", perkDesc: "Your first miss each game won't break your streak.", pitch: 1.5, f: { idle: "🐱", happy: "😺", wow: "😻", sad: "🙀" } },
-  { id: 2, name: "Cool Croc", xp: 500, perk: "thick", perkName: "Thick Skin", perkDesc: "Even a wrong read still pays +5.", pitch: 0.7, f: { idle: "🐊", happy: "😏", wow: "🤯", sad: "😬" } },
-  { id: 3, name: "Pro Panda", xp: 1000, perk: "brain", perkName: "Big Brain", perkDesc: "+25% points when playing on Pro difficulty.", pitch: 1.1, f: { idle: "🐼", happy: "😄", wow: "🤩", sad: "😞" } },
-  { id: 4, name: "Sir Fox", xp: 1800, perk: "double", perkName: "Lucky Find", perkDesc: "20% chance to double a correct guess.", pitch: 1.25, f: { idle: "🦊", happy: "😼", wow: "✨", sad: "🥺" } },
-  { id: 5, name: "Dragon Boss", xp: 3000, perk: "hoard", perkName: "Treasure Hoard", perkDesc: "+50% XP on everything — level up faster.", pitch: 0.5, f: { idle: "🐲", happy: "😈", wow: "🔥", sad: "😤" } },
+  { id: 0, name: "Sharky", xp: 0, perk: "streak", perkName: "Hot Streak", perkDesc: "Combos pay extra — each streak step is worth more.", pitch: 0.85, rate: 1.05, call: "shark", f: { idle: "🦈", happy: "😎", wow: "🤩", sad: "😵" } },
+  { id: 1, name: "Lucky Cat", xp: 200, perk: "shield", perkName: "Nine Lives", perkDesc: "Your first miss each game won't break your streak.", pitch: 1.8, rate: 1.18, call: "cat", f: { idle: "🐱", happy: "😺", wow: "😻", sad: "🙀" } },
+  { id: 2, name: "Cool Croc", xp: 500, perk: "thick", perkName: "Thick Skin", perkDesc: "Even a wrong read still pays +5.", pitch: 0.55, rate: 0.9, call: "croc", f: { idle: "🐊", happy: "😏", wow: "🤯", sad: "😬" } },
+  { id: 3, name: "Pro Panda", xp: 1000, perk: "brain", perkName: "Big Brain", perkDesc: "+25% points when playing on Pro difficulty.", pitch: 1.15, rate: 0.98, call: "panda", f: { idle: "🐼", happy: "😄", wow: "🤩", sad: "😞" } },
+  { id: 4, name: "Sir Fox", xp: 1800, perk: "double", perkName: "Lucky Find", perkDesc: "20% chance to double a correct guess.", pitch: 1.45, rate: 1.2, call: "fox", f: { idle: "🦊", happy: "😼", wow: "✨", sad: "🥺" } },
+  { id: 5, name: "Dragon Boss", xp: 3000, perk: "hoard", perkName: "Treasure Hoard", perkDesc: "+50% XP on everything — level up faster.", pitch: 0.35, rate: 0.82, call: "dragon", f: { idle: "🐲", happy: "😈", wow: "🔥", sad: "😤" } },
 ];
 const unlockedCount = (xp) => SKINS.filter((s) => s.xp <= xp).length;
 function loadProfile() { try { const r = localStorage.getItem("pokergod_profile"); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
@@ -230,11 +230,35 @@ function ping(kind, muted, n) {
     else if (kind === "bad") { tone(311.13, now, 0.22, "sawtooth", 0.07); tone(233.08, now + 0.18, 0.38, "sawtooth", 0.07); tone(155.56, now + 0.18, 0.45, "sine", 0.05); }
   } catch (e) {}
 }
+// Short signature animal vocalization, built from oscillators, played right before the voice line
+function critter(call, muted) {
+  if (muted) return;
+  try {
+    _ac = _ac || new (window.AudioContext || window.webkitAudioContext)();
+    const ac = _ac, now = ac.currentTime;
+    const out = ac.createGain(); out.gain.value = 0.5; out.connect(ac.destination);
+    const glide = (f0, f1, t0, dur, type, g, curve) => {
+      const o = ac.createOscillator(), ga = ac.createGain();
+      o.type = type || "sawtooth"; o.frequency.setValueAtTime(f0, t0);
+      if (curve === "exp") o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t0 + dur);
+      else o.frequency.linearRampToValueAtTime(f1, t0 + dur);
+      ga.gain.setValueAtTime(0, t0); ga.gain.linearRampToValueAtTime(g, t0 + 0.03);
+      ga.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(ga); ga.connect(out); o.start(t0); o.stop(t0 + dur + 0.04);
+    };
+    if (call === "shark") { glide(120, 70, now, 0.34, "sawtooth", 0.22, "lin"); }
+    else if (call === "cat") { glide(620, 880, now, 0.16, "sine", 0.18); glide(880, 540, now + 0.16, 0.22, "sine", 0.2); } // meow up-down
+    else if (call === "croc") { glide(90, 60, now, 0.42, "square", 0.26, "lin"); } // low growl
+    else if (call === "panda") { glide(420, 500, now, 0.14, "triangle", 0.16); glide(500, 430, now + 0.13, 0.16, "triangle", 0.14); } // soft chirp
+    else if (call === "fox") { glide(700, 1150, now, 0.12, "square", 0.16, "exp"); glide(1150, 760, now + 0.13, 0.14, "square", 0.14); } // yip
+    else if (call === "dragon") { glide(70, 48, now, 0.55, "sawtooth", 0.3, "lin"); glide(150, 90, now, 0.55, "square", 0.14, "lin"); } // deep roar
+  } catch (e) {}
+}
 let _spoke = false;
 function primeSpeech() {
   try { const s = window.speechSynthesis; if (!s || _spoke) return; const u = new SpeechSynthesisUtterance(" "); u.volume = 0; s.speak(u); _spoke = true; } catch (e) {}
 }
-function speak(text, muted, pitch) {
+function speak(text, muted, skin) {
   if (muted) return;
   try {
     const s = window.speechSynthesis; if (!s) return;
@@ -242,18 +266,33 @@ function speak(text, muted, pitch) {
     if (!clean) return;
     s.cancel();
     const u = new SpeechSynthesisUtterance(clean);
-    u.pitch = pitch || 1; u.rate = 1.04; u.volume = 1;
+    const basePitch = (skin && skin.pitch) || 1, baseRate = (skin && skin.rate) || 1.04;
+    // a little natural jitter each line so it doesn't sound flat/robotic
+    u.pitch = Math.max(0.1, Math.min(2, basePitch + (Math.random() - 0.5) * 0.18));
+    u.rate = Math.max(0.5, Math.min(2, baseRate + (Math.random() - 0.5) * 0.1));
+    u.volume = 1;
     const vs = s.getVoices(); const v = vs.find((x) => /en[-_]?US/i.test(x.lang)) || vs.find((x) => /^en/i.test(x.lang)); if (v) u.voice = v;
-    setTimeout(() => { try { s.resume(); s.speak(u); } catch (e) {} }, 280);
+    // start the spoken line just after the animal call finishes
+    setTimeout(() => { try { s.resume(); s.speak(u); } catch (e) {} }, 360);
   } catch (e) {}
 }
 
 const Q = {
-  ask: { showdown: ["Who's scooping this pot?", "Eyeball it, hotshot.", "Trust your read. Or don't."], equity: ["Who's got the edge?", "Read the future, genius.", "Math says... you tell me."], range: ["Hunter or prey?", "Fav, flip, or fish food?", "How brave are we feeling?"] },
-  good: ["BOOM. You read souls.", "Color me impressed.", "Are you cheating??", "Cold-blooded. Love it.", "GG, math bows to you."],
-  great: ["UNCONSCIOUS!", "Somebody stop this legend!", "Built different.", "The deck fears you now."],
-  bad: ["Oof. The cards laughed.", "Math one, you zero.", "A goldfish saw that one.", "Plot twist! Not today.", "Yikes. Walk it off."],
+  ask: { showdown: ["Who's scooping this pot?", "Eyeball it, hotshot.", "Trust your read. Or don't.", "Call it — who takes it down?", "Money's in the middle. Who wins?"], equity: ["Who's got the edge?", "Read the future, genius.", "Math says... you tell me.", "Who's ahead right now?", "Spot the favorite."], range: ["Hunter or prey?", "Fav, flip, or fish food?", "How brave are we feeling?", "Where do you sit in this one?"], draft: ["Draft 2 — beat the table!", "Pick your weapons, legend.", "Build the nuts. Read 'em.", "Two cards. Make 'em count."] },
+  good: ["BOOM. You read souls.", "Color me impressed.", "Are you cheating??", "Cold-blooded. Love it.", "GG, math bows to you.", "Filthy read. Respect."],
+  great: ["UNCONSCIOUS!", "Somebody stop this legend!", "Built different.", "The deck fears you now.", "Absolutely surgical."],
+  bad: ["Oof. The cards laughed.", "Math one, you zero.", "A goldfish saw that one.", "Plot twist! Not today.", "Yikes. Walk it off.", "The river had other plans."],
 };
+// pick a phrase that isn't the same as the last one used for this category
+let _lastPhrase = {};
+function pickFresh(arr, cat) {
+  if (!arr || !arr.length) return "";
+  if (arr.length === 1) return arr[0];
+  let c, tries = 0;
+  do { c = arr[Math.floor(Math.random() * arr.length)]; tries++; } while (c === _lastPhrase[cat] && tries < 8);
+  _lastPhrase[cat] = c;
+  return c;
+}
 
 /* ============ FX ============ */
 function Confetti() {
@@ -394,14 +433,21 @@ function App() {
     const t = setTimeout(() => setTimeLeft((x) => x - 1), 1000);
     return () => clearTimeout(t);
   }, [screen, blitz, timeLeft]);
+  // Speak a fresh line (with the animal call) at the start of every new hand
+  useEffect(() => {
+    if (screen !== "play" || !round || revealed) return;
+    critter(curSkin.call, muted);
+    speak(msg, muted, curSkin);
+    // eslint-disable-next-line
+  }, [round]);
 
   const curSkin = SKINS.find((s) => s.id === skin) || SKINS[0];
   const who = (i) => (i === 0 ? (name || "You") : POS[i]);
-  const say = (m, mood2) => { setMsg(m); if (mood2) setMood(mood2); speak(m, muted, curSkin.pitch); };
+  const say = (m, mood2) => { setMsg(m); if (mood2) setMood(mood2); critter(curSkin.call, muted); speak(m, muted, curSkin); };
   const freshRound = useCallback((m, p, d) => {
     setDraftSel([]); setBoardShown(0); setSweating(false); setLiveEq(null);
-    if (m === "draft") { setRound(dealDraft(d, p)); setPickv(null); setRevealed(false); setMood("idle"); setMsg("Draft 2 cards… read the field 🃏"); return; }
-    setRound(deal(m, p, d)); setPickv(null); setRevealed(false); setMood("idle"); setMsg(pick(Q.ask[m]));
+    if (m === "draft") { setRound(dealDraft(d, p)); setPickv(null); setRevealed(false); setMood("idle"); setMsg(pickFresh(Q.ask.draft, "draft") + " 🃏"); return; }
+    setRound(deal(m, p, d)); setPickv(null); setRevealed(false); setMood("idle"); setMsg(pickFresh(Q.ask[m], "ask-" + m));
   }, []);
   const nextRound = useCallback(() => freshRound(mode, players, diff), [mode, players, diff, freshRound]);
   const start = () => { primeSpeech(); setStats({ score: 0, streak: 0, best: 0, correct: 0, total: 0 }); setTimeLeft(60); setShieldUsed(false); freshRound(mode, players, diff); setScreen("play"); };
@@ -484,14 +530,14 @@ function App() {
     if (ok) {
       const big = newStreak >= 3;
       ping(big ? "great" : "good", muted); setPopc((k) => k + 1);
-      say(doubled ? "Double payout! 🍀💰" : big ? pick(Q.great) : pick(Q.good), big ? "wow" : "happy");
+      say(doubled ? "Double payout! 🍀💰" : big ? pickFresh(Q.great, "great") : pickFresh(Q.good, "good"), big ? "wow" : "happy");
       setFloatPts({ k: Date.now(), text: "+" + gain + (doubled ? " 🍀" : ""), color: doubled ? "#86efac" : "#fcd34d" });
     } else if (saved) {
       ping("good", muted); say("Nine Lives! Streak saved!", "happy");
       setFloatPts({ k: Date.now(), text: "🛡️ SAVED", color: "#67e8f9" });
     } else {
       ping("bad", muted); setShake(true); setTimeout(() => setShake(false), 550);
-      say(pick(Q.bad), "sad");
+      say(pickFresh(Q.bad, "bad"), "sad");
       if (gain > 0) setFloatPts({ k: Date.now(), text: "+" + gain, color: "#cbd5e1" });
     }
     if (xpGain > 0) {
@@ -721,7 +767,7 @@ function HandsView({ round, players, revealed, pickv, correct, submit, pop, who 
           return (
             <button key={i} disabled={revealed} onClick={() => submit(i)}
               className={"p-3 rounded-2xl border-2 transition " + cls + " " + (!revealed ? "hover:scale-105 hover:border-amber-300 active:scale-95 cursor-pointer" : "")}>
-              <div className="flex items-center justify-between mb-2"><span className={"text-xs font-black truncate max-w-[80px] " + (i === 0 ? "text-amber-300" : "text-white")}>{who(i)}</span>{revealed && isW && <span>✅</span>}{revealed && isP && !isW && <span>❌</span>}</div>
+              <div className="flex items-center justify-between mb-2"><span className={"text-xs font-black truncate max-w-[80px] " + (i === 0 ? "text-amber-300" : "text-white")}>{who(i)}</span>{revealed && isW && <span>🏆</span>}{revealed && isP && !isW && <span>❌</span>}</div>
               <div className="flex justify-center gap-1.5">{hand.map((c, k) => <PlayingCard key={pop + "-" + k} c={c} small idx={k} anim />)}</div>
               {revealed && (<div className="mt-2">
                 {sc && <div className="text-white text-[11px] font-black leading-tight">{describe(sc)}</div>}
@@ -783,12 +829,13 @@ function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft
   const heroMade = revealed && heroSel.length === 2 ? describe(evaluate7([...heroSel, ...round.fullBoard])) : null;
   const drafting = !sweating && !revealed;
   const multi = round.opps.length > 1;
-  // Resolve showdown result for display (when revealed)
-  let resultLine = null;
+  // Resolve showdown result + winner indices for display (when revealed). 0 = hero, k+1 = opp k
+  let resultLine = null, winners = [];
   if (revealed && heroSel.length === 2) {
     const all = [heroSel, ...round.opps];
     let best = null, idxs = [];
     for (let h = 0; h < all.length; h++) { const sc = evaluate7([...all[h], ...round.fullBoard]); if (best === null || cmp(sc, best) > 0) { best = sc; idxs = [h]; } else if (cmp(sc, best) === 0) idxs.push(h); }
+    winners = idxs;
     const heroIn = idxs.includes(0);
     if (heroIn && idxs.length === 1) resultLine = "💰 " + (name || "You") + " scoop the pot!";
     else if (heroIn && idxs.length > 1) resultLine = "🤝 Chopped — " + (name || "You") + " split it.";
@@ -798,13 +845,12 @@ function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft
     <React.Fragment>
       {drafting && (
         <React.Fragment>
-          <div className="text-center text-rose-300 text-[10px] uppercase tracking-widest font-black mb-2">{multi ? "The Field — Mystery Ranges" : "Opponent — Mystery Range"}</div>
+          <div className="text-center text-rose-300 text-[10px] uppercase tracking-widest font-black mb-2">{multi ? "The Field — Their Cards" : "Opponent — Their Cards"}</div>
           <div className="flex justify-center gap-4 flex-wrap mb-4">
             {round.opps.map((o, k) => (
               <div key={k} className="text-center">
                 <div className="text-white/70 text-[10px] font-black mb-1">{POS[k + 1] || ("Opp " + (k + 1))}</div>
-                <div className="flex gap-1.5 justify-center"><CardBack small /><CardBack small /></div>
-                <div className="text-amber-300 text-[10px] mt-1 font-black max-w-[110px] leading-tight">{round.oppRanges[k]}</div>
+                <div className="flex gap-1.5 justify-center">{o.map((c, j) => <PlayingCard key={j} c={c} small idx={j} anim />)}</div>
               </div>
             ))}
           </div>
@@ -836,22 +882,24 @@ function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft
           {sweating && <p className="text-center text-amber-300 font-black mb-2 text-lg drop-shadow animate-pulse">🔥 Running it out…</p>}
           {revealed && <p className="text-center text-white font-black mb-2 text-lg drop-shadow">Showdown!</p>}
           <div className="text-center mb-2">
-            <div className="text-amber-300 text-[10px] uppercase tracking-widest font-black mb-1 truncate">{name || "You"}</div>
-            <div className="flex gap-1.5 justify-center">{heroSel.map((c, k) => <PlayingCard key={k} c={c} />)}</div>
+            <div className="text-amber-300 text-[10px] uppercase tracking-widest font-black mb-1 truncate">{name || "You"}{revealed && winners.includes(0) && " 🏆"}</div>
+            <div className={"inline-flex gap-1.5 justify-center rounded-xl p-1 " + (revealed && winners.includes(0) ? "ring-4 ring-emerald-300/70 bg-emerald-500/20" : "")}>{heroSel.map((c, k) => <PlayingCard key={k} c={c} />)}</div>
             {heroMade && <div className="text-white text-[11px] mt-1 font-black">{heroMade}</div>}
           </div>
           <div className="text-amber-300 font-black text-xl drop-shadow text-center my-1">⚔️</div>
           <div className="flex justify-center gap-4 flex-wrap mb-1">
-            {round.opps.map((o, k) => (
+            {round.opps.map((o, k) => {
+              const oppWon = revealed && winners.includes(k + 1);
+              return (
               <div key={k} className="text-center">
-                <div className="text-rose-300 text-[10px] uppercase tracking-widest font-black mb-1">{POS[k + 1] || ("Opp " + (k + 1))}</div>
-                <div className="flex gap-1.5 justify-center">{revealed
+                <div className={"text-[10px] uppercase tracking-widest font-black mb-1 " + (oppWon ? "text-emerald-300" : "text-rose-300")}>{POS[k + 1] || ("Opp " + (k + 1))}{oppWon && " 🏆"}</div>
+                <div className={"inline-flex gap-1.5 justify-center rounded-xl p-1 " + (oppWon ? "ring-4 ring-emerald-300/70 bg-emerald-500/20" : "")}>{revealed
                   ? o.map((c, j) => <PlayingCard key={j} c={c} small />)
                   : <React.Fragment><CardBack small /><CardBack small /></React.Fragment>}</div>
                 {revealed && <div className="text-white text-[11px] mt-1 font-bold leading-tight">{describe(evaluate7([...o, ...round.fullBoard]))}</div>}
-                <div className="text-rose-300/80 text-[10px] mt-0.5 font-black max-w-[110px] leading-tight">{round.oppRanges[k]}</div>
               </div>
-            ))}
+              );
+            })}
           </div>
           {sweating && liveEq != null && (
             <div className="mt-3"><EquityBar eq={liveEq} oppLabel={multi ? "FIELD" : "OPP"} /></div>
