@@ -9,7 +9,7 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style> html,body{margin:0;background:#05130d} #root{min-height:100vh} </style>
+  <style> html,body{margin:0;background:#060504} #root{min-height:100vh} </style>
 </head>
 <body>
   <div id="root"></div>
@@ -162,14 +162,13 @@ function dealRange(diff) {
 const MULT = { easy: 1, medium: 1.5, hard: 2 };
 const DIFF = { easy: { label: "Rookie 🐣", m: "×1" }, medium: { label: "Bull 🐂", m: "×1.5" }, hard: { label: "Pro 🦈", m: "×2" } };
 
+// Draft & Sweat — board is hidden; full 5 cards run out after lock-in
 function dealDraft(diff) {
   const deck = shuffled();
   const pool = deck.slice(0, 5);
   const opp = [deck[5], deck[6]];
-  const showFlop = diff === "easy" ? false : diff === "hard" ? true : Math.random() < 0.5;
-  const flop = showFlop ? [deck[7], deck[8], deck[9]] : [];
-  const restBoard = deck.slice(10, 10 + (5 - flop.length));
-  const fullBoard = [...flop, ...restBoard];
+  const flop = [];
+  const fullBoard = deck.slice(7, 12);
   const combos = [];
   for (let i = 0; i < 5; i++) for (let j = i + 1; j < 5; j++) combos.push([i, j]);
   let bestEq = 0;
@@ -184,18 +183,18 @@ function dealDraft(diff) {
 
 /* ============ SKINS / XP ============ */
 const SKINS = [
-  { id: 0, name: "Sharky", xp: 0, perk: "streak", perkName: "Hot Streak", perkDesc: "Combos pay extra — each streak step is worth more.", f: { idle: "🦈", happy: "😎", wow: "🤩", sad: "😵" } },
-  { id: 1, name: "Lucky Cat", xp: 200, perk: "shield", perkName: "Nine Lives", perkDesc: "Your first miss each game won't break your streak.", f: { idle: "🐱", happy: "😺", wow: "😻", sad: "🙀" } },
-  { id: 2, name: "Cool Croc", xp: 500, perk: "thick", perkName: "Thick Skin", perkDesc: "Even a wrong read still pays +5.", f: { idle: "🐊", happy: "😏", wow: "🤯", sad: "😬" } },
-  { id: 3, name: "Pro Panda", xp: 1000, perk: "brain", perkName: "Big Brain", perkDesc: "+25% points when playing on Pro difficulty.", f: { idle: "🐼", happy: "😄", wow: "🤩", sad: "😞" } },
-  { id: 4, name: "Sir Fox", xp: 1800, perk: "double", perkName: "Lucky Find", perkDesc: "20% chance to double a correct guess.", f: { idle: "🦊", happy: "😼", wow: "✨", sad: "🥺" } },
-  { id: 5, name: "Dragon Boss", xp: 3000, perk: "hoard", perkName: "Treasure Hoard", perkDesc: "+50% XP on everything — level up faster.", f: { idle: "🐲", happy: "😈", wow: "🔥", sad: "😤" } },
+  { id: 0, name: "Sharky", xp: 0, perk: "streak", perkName: "Hot Streak", perkDesc: "Combos pay extra — each streak step is worth more.", pitch: 1.0, f: { idle: "🦈", happy: "😎", wow: "🤩", sad: "😵" } },
+  { id: 1, name: "Lucky Cat", xp: 200, perk: "shield", perkName: "Nine Lives", perkDesc: "Your first miss each game won't break your streak.", pitch: 1.4, f: { idle: "🐱", happy: "😺", wow: "😻", sad: "🙀" } },
+  { id: 2, name: "Cool Croc", xp: 500, perk: "thick", perkName: "Thick Skin", perkDesc: "Even a wrong read still pays +5.", pitch: 0.8, f: { idle: "🐊", happy: "😏", wow: "🤯", sad: "😬" } },
+  { id: 3, name: "Pro Panda", xp: 1000, perk: "brain", perkName: "Big Brain", perkDesc: "+25% points when playing on Pro difficulty.", pitch: 1.1, f: { idle: "🐼", happy: "😄", wow: "🤩", sad: "😞" } },
+  { id: 4, name: "Sir Fox", xp: 1800, perk: "double", perkName: "Lucky Find", perkDesc: "20% chance to double a correct guess.", pitch: 1.2, f: { idle: "🦊", happy: "😼", wow: "✨", sad: "🥺" } },
+  { id: 5, name: "Dragon Boss", xp: 3000, perk: "hoard", perkName: "Treasure Hoard", perkDesc: "+50% XP on everything — level up faster.", pitch: 0.6, f: { idle: "🐲", happy: "😈", wow: "🔥", sad: "😤" } },
 ];
 const unlockedCount = (xp) => SKINS.filter((s) => s.xp <= xp).length;
 function loadProfile() { try { const r = localStorage.getItem("pokergod_profile"); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
 function saveProfile(p) { try { localStorage.setItem("pokergod_profile", JSON.stringify(p)); } catch (e) {} }
 
-/* ============ SOUND ============ */
+/* ============ SOUND + VOICE ============ */
 let _ac;
 function ping(kind, muted, n) {
   if (muted) return;
@@ -220,12 +219,31 @@ function ping(kind, muted, n) {
     else if (kind === "bad") { tone(311.13, now, 0.22, "sawtooth", 0.07); tone(233.08, now + 0.18, 0.38, "sawtooth", 0.07); tone(155.56, now + 0.18, 0.45, "sine", 0.05); }
   } catch (e) {}
 }
+function speak(text, muted, pitch) {
+  if (muted) return;
+  try {
+    const synth = window.speechSynthesis; if (!synth) return;
+    const clean = (text || "").replace(/[^A-Za-z0-9 ,.!?'-]/g, "").replace(/\s+/g, " ").trim();
+    if (!clean) return;
+    synth.cancel();
+    setTimeout(() => {
+      try {
+        const u = new SpeechSynthesisUtterance(clean);
+        u.pitch = pitch || 1; u.rate = 1.04; u.volume = 1;
+        const vs = synth.getVoices();
+        const v = vs.find((x) => /en[-_]?US/i.test(x.lang)) || vs.find((x) => /^en/i.test(x.lang));
+        if (v) u.voice = v;
+        synth.speak(u);
+      } catch (e) {}
+    }, 480);
+  } catch (e) {}
+}
 
 const Q = {
-  ask: { showdown: ["Who's scooping this pot? 🤔", "Eyeball it, hotshot.", "Trust your read. Or don't."], equity: ["Who's got the edge? 🎯", "Read the future, genius.", "Math says... you tell me."], range: ["Hunter or prey? 🎯", "Fav, flip, or fish food?", "How brave are we feeling?"] },
-  good: ["BOOM. You read souls. 🔥", "Color me impressed. ✨", "Are you cheating?? 😏", "Cold-blooded. Love it.", "GG, math bows to you. 🙇"],
-  great: ["UNCONSCIOUS. 🔥🔥", "SOMEBODY STOP HIM 🚨", "Built different. 💪", "The deck fears you now."],
-  bad: ["Oof. The cards laughed. 😬", "Math 1, You 0 🤡", "A goldfish saw that one.", "Plot twist! Not today.", "Yikes. Walk it off. 💔"],
+  ask: { showdown: ["Who's scooping this pot?", "Eyeball it, hotshot.", "Trust your read. Or don't."], equity: ["Who's got the edge?", "Read the future, genius.", "Math says... you tell me."], range: ["Hunter or prey?", "Fav, flip, or fish food?", "How brave are we feeling?"] },
+  good: ["BOOM. You read souls.", "Color me impressed.", "Are you cheating??", "Cold-blooded. Love it.", "GG, math bows to you."],
+  great: ["UNCONSCIOUS!", "Somebody stop this legend!", "Built different.", "The deck fears you now."],
+  bad: ["Oof. The cards laughed.", "Math one, you zero.", "A goldfish saw that one.", "Plot twist! Not today.", "Yikes. Walk it off."],
 };
 
 /* ============ FX ============ */
@@ -304,19 +322,23 @@ const STYLE = `
 @keyframes floatup{0%{transform:translate(-50%,0) scale(.5);opacity:0}20%{transform:translate(-50%,-8px) scale(1.2);opacity:1}100%{transform:translate(-50%,-80px) scale(1);opacity:0}}
 @keyframes toast{0%{transform:translate(-50%,-30px) scale(.7);opacity:0}15%{transform:translate(-50%,0) scale(1.05);opacity:1}85%{transform:translate(-50%,0) scale(1);opacity:1}100%{transform:translate(-50%,-20px);opacity:0}}
 @keyframes shine{0%{opacity:0}22%{opacity:1}100%{opacity:0}}
+@keyframes glow{0%,100%{text-shadow:0 0 18px rgba(242,212,121,.35),0 1px 0 #a9842a}50%{text-shadow:0 0 30px rgba(242,212,121,.7),0 1px 0 #a9842a}}
 .gbtn{background-color:#e9c45a;background-image:linear-gradient(180deg,#fdeba8 0%,#e9c45a 45%,#caa53a 72%,#9c7a20 100%);color:#1a1206;border:1px solid #f7e7a8;box-shadow:0 6px 16px rgba(201,162,58,.4),inset 0 1px 0 rgba(255,255,255,.7),inset 0 -2px 4px rgba(120,90,20,.5)}
 .gbtn:hover{filter:brightness(1.07)}
 .gsel{background-color:#e9c45a;background-image:linear-gradient(180deg,#fdeba8,#e9c45a 60%,#caa53a);color:#1a1206;border-color:#f7e7a8}
-.panel{background-image:linear-gradient(180deg,rgba(20,16,9,.92),rgba(7,6,4,.95));border:1px solid rgba(201,162,58,.45);box-shadow:0 0 0 1px rgba(201,162,58,.15),0 26px 70px rgba(0,0,0,.7),inset 0 1px 0 rgba(245,214,118,.2)}
+.panel{background-image:linear-gradient(180deg,rgba(22,18,10,.94),rgba(8,6,4,.96));border:1px solid rgba(201,162,58,.5);box-shadow:0 0 0 1px rgba(201,162,58,.18),0 30px 80px rgba(0,0,0,.75),inset 0 1px 0 rgba(245,214,118,.25)}
 .felt{background-image:radial-gradient(ellipse at 50% 42%, #1c7150, #0d3d2a 58%, #07261a);border:2px solid rgba(201,162,58,.55);box-shadow:inset 0 0 34px rgba(0,0,0,.6), 0 0 0 4px rgba(0,0,0,.45), 0 0 0 5px rgba(201,162,58,.3), 0 10px 30px rgba(0,0,0,.5)}
-.gtxt{color:#f2d479;text-shadow:0 1px 0 #a9842a,0 0 16px rgba(242,212,121,.45)}
+.gtxt{color:#f2d479;animation:glow 3.5s ease-in-out infinite}
+.grule{height:1px;background:linear-gradient(90deg,transparent,#caa53a,transparent)}
+.glowemoji{filter:drop-shadow(0 0 20px rgba(212,175,55,.55))}
 `;
 const BG = { backgroundColor: "#05130d", backgroundImage: "radial-gradient(circle at 50% 50%, transparent 50%, rgba(0,0,0,.62) 100%), radial-gradient(circle at 50% 18%, rgba(201,162,58,.12), rgba(201,162,58,0) 42%), radial-gradient(ellipse at 50% 30%, #114a35, #0a2c20 48%, #06140d 82%)" };
+const BG_HOME = { backgroundColor: "#070605", backgroundImage: "radial-gradient(circle at 50% -8%, rgba(212,175,55,.24), rgba(212,175,55,0) 46%), radial-gradient(circle at 50% 118%, rgba(201,162,58,.13), transparent 55%), linear-gradient(180deg,#0d0a07,#050403)" };
 const PANEL = "panel rounded-3xl";
 const Avatar = ({ skin, mood, name, size }) => (
   <div className="flex flex-col items-center shrink-0">
-    <span className={size || "text-4xl"} style={{ animation: "bob 2.5s ease-in-out infinite" }}>{skin.f[mood] || skin.f.idle}</span>
-    {name && <span className="text-amber-300 text-[10px] font-black -mt-0.5 max-w-[70px] truncate">{name}</span>}
+    <span className={size || "text-5xl"} style={{ animation: "bob 2.5s ease-in-out infinite" }}>{skin.f[mood] || skin.f.idle}</span>
+    {name && <span className="text-amber-300 text-[11px] font-black -mt-0.5 max-w-[80px] truncate">{name}</span>}
   </div>
 );
 
@@ -355,6 +377,7 @@ function App() {
     if (p) { setXp(p.xp || 0); setSkin(p.skin || 0); if (p.name) setName(p.name); }
     setLoaded(true);
     setScreen(p && p.name ? "menu" : "login");
+    try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch (e) {}
   }, []);
   useEffect(() => { if (!loaded) return; const t = setTimeout(() => saveProfile({ xp, skin, name }), 600); return () => clearTimeout(t); }, [xp, skin, name, loaded]);
   useEffect(() => {
@@ -366,6 +389,7 @@ function App() {
 
   const curSkin = SKINS.find((s) => s.id === skin) || SKINS[0];
   const who = (i) => (i === 0 ? (name || "You") : POS[i]);
+  const say = (m, mood2) => { setMsg(m); if (mood2) setMood(mood2); speak(m, muted, curSkin.pitch); };
   const freshRound = useCallback((m, p, d) => {
     setDraftSel([]); setBoardShown(0); setSweating(false); setLiveEq(null);
     if (m === "draft") { setRound(dealDraft(d)); setPickv(null); setRevealed(false); setMood("idle"); setMsg("Draft 2 cards… choose wisely 🃏"); return; }
@@ -381,7 +405,11 @@ function App() {
   const toggleDraft = (i) => {
     if (sweating || revealed) return;
     ping("click", muted);
-    setDraftSel((sel) => sel.includes(i) ? sel.filter((x) => x !== i) : sel.length < 2 ? [...sel, i] : sel);
+    setDraftSel((sel) => {
+      if (sel.includes(i)) return sel.filter((x) => x !== i);
+      if (sel.length < 2) return [...sel, i];
+      return [sel[1], i];
+    });
   };
   const lockDraft = () => {
     if (draftSel.length !== 2 || sweating || revealed) return;
@@ -412,15 +440,15 @@ function App() {
     const xpGain = perk === "hoard" ? Math.round(gain * 1.5) : gain;
     setRevealed(true); setSweating(false);
     setStats((s) => ({ score: s.score + gain, streak: won ? s.streak + 1 : 0, best: Math.max(s.best, won ? s.streak + 1 : s.streak), correct: s.correct + (won ? 1 : 0), total: s.total + 1 }));
-    if (won) { ping(stats.streak + 1 >= 3 ? "great" : "good", muted); setPopc((k) => k + 1); setMood("wow"); setMsg(tie ? "Chopped it! 🤝" : greatDraft ? "Perfect draft! 🔥" : "You sweated it out! 💰"); }
-    else { ping("bad", muted); setShake(true); setTimeout(() => setShake(false), 550); setMood("sad"); setMsg(greatDraft ? "Great draft, cruel river 😤" : "Drew dead. Ouch. 💀"); }
+    if (won) { ping(stats.streak + 1 >= 3 ? "great" : "good", muted); setPopc((k) => k + 1); say(tie ? "Chopped it! 🤝" : greatDraft ? "Perfect draft!" : "You sweated it out! 💰", "wow"); }
+    else { ping("bad", muted); setShake(true); setTimeout(() => setShake(false), 550); say(greatDraft ? "Great draft, cruel river." : "Drew dead. Ouch.", "sad"); }
     setFloatPts({ k: Date.now(), text: "+" + gain, color: won ? "#fcd34d" : "#cbd5e1" });
     if (xpGain > 0) {
       const before = unlockedCount(xp), nx = xp + xpGain, after = unlockedCount(nx);
       setXp(nx);
       if (after > before) { const ns = SKINS[after - 1]; setUnlock(ns); setSkin(ns.id); setTimeout(() => ping("unlock", muted), 250); setTimeout(() => setUnlock(null), 3600); }
     }
-    if (blitz) setTimeout(() => freshRound(mode, players, diff), 1700);
+    if (blitz) setTimeout(() => freshRound(mode, players, diff), 1900);
   };
 
   const submit = (choice) => {
@@ -443,15 +471,14 @@ function App() {
     if (ok) {
       const big = newStreak >= 3;
       ping(big ? "great" : "good", muted); setPopc((k) => k + 1);
-      setMood(big ? "wow" : "happy");
-      setMsg(doubled ? "DOUBLE PAYOUT! 🍀💰" : big ? pick(Q.great) : pick(Q.good));
+      say(doubled ? "Double payout! 🍀💰" : big ? pick(Q.great) : pick(Q.good), big ? "wow" : "happy");
       setFloatPts({ k: Date.now(), text: "+" + gain + (doubled ? " 🍀" : ""), color: doubled ? "#86efac" : "#fcd34d" });
     } else if (saved) {
-      ping("good", muted); setMood("happy"); setMsg("🐱 Nine Lives! Streak saved!");
+      ping("good", muted); say("Nine Lives! Streak saved!", "happy");
       setFloatPts({ k: Date.now(), text: "🛡️ SAVED", color: "#67e8f9" });
     } else {
       ping("bad", muted); setShake(true); setTimeout(() => setShake(false), 550);
-      setMood("sad"); setMsg(pick(Q.bad));
+      say(pick(Q.bad), "sad");
       if (gain > 0) setFloatPts({ k: Date.now(), text: "+" + gain, color: "#cbd5e1" });
     }
     if (xpGain > 0) {
@@ -467,15 +494,16 @@ function App() {
   const lvl = unlockedCount(xp);
   const nextSkin = SKINS.find((s) => s.xp > xp);
 
-  if (screen === "boot") return (<div className="min-h-[640px] w-full flex items-center justify-center" style={BG}><style>{STYLE}</style><div className="text-amber-300 font-black text-xl animate-pulse">🃏 Shuffling the deck…</div></div>);
+  if (screen === "boot") return (<div className="min-h-[640px] w-full flex items-center justify-center" style={BG_HOME}><style>{STYLE}</style><div className="text-amber-300 font-black text-xl animate-pulse">🃏 Shuffling the deck…</div></div>);
 
   if (screen === "login") return (
-    <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG}>
+    <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG_HOME}>
       <style>{STYLE}</style>
       <div className={PANEL + " p-7 max-w-sm w-full text-center"}>
-        <span className="text-6xl inline-block" style={{ animation: "bob 2.5s ease-in-out infinite" }}>{curSkin.f.idle}</span>
-        <h1 className="text-4xl font-black text-white mt-2 leading-none">POKER<span className="gtxt"> GOD</span></h1>
-        <p className="text-amber-200 text-[11px] mt-1.5 font-black uppercase tracking-[0.3em] mb-5">The Art of the Read</p>
+        <span className="text-7xl inline-block glowemoji" style={{ animation: "bob 2.5s ease-in-out infinite" }}>{curSkin.f.idle}</span>
+        <h1 className="text-5xl font-black text-white mt-3 leading-none tracking-tight">POKER<span className="gtxt"> GOD</span></h1>
+        <p className="text-amber-200 text-[11px] mt-2 font-black uppercase tracking-[0.35em] mb-3">The Art of the Read</p>
+        <div className="grule w-24 mx-auto mb-5"></div>
         <p className="text-white font-bold mb-3">{name ? "Change your name, legend?" : "What should we call you, legend?"}</p>
         <input value={nameInput} onChange={(e) => setNameInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") confirmName(); }}
           maxLength={16} placeholder="Your screen name"
@@ -501,12 +529,13 @@ function App() {
       </button>
     );
     return (
-      <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG}>
+      <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG_HOME}>
         <style>{STYLE}</style>
         <div className={PANEL + " p-6 max-w-md w-full"}>
-          <div className="text-center mb-1"><span className="text-5xl inline-block" style={{ animation: "bob 2.5s ease-in-out infinite" }}>{curSkin.f.idle}</span></div>
-          <h1 className="text-4xl font-black text-white text-center tracking-tight leading-none">POKER<span className="gtxt"> GOD</span></h1>
-          <p className="text-amber-200 text-center text-[11px] mt-1.5 mb-3 font-black uppercase tracking-[0.3em]">The Art of the Read</p>
+          <div className="text-center mb-1"><span className="text-6xl inline-block glowemoji" style={{ animation: "bob 2.5s ease-in-out infinite" }}>{curSkin.f.idle}</span></div>
+          <h1 className="text-5xl font-black text-white text-center tracking-tight leading-none">POKER<span className="gtxt"> GOD</span></h1>
+          <p className="text-amber-200 text-center text-[11px] mt-2 mb-3 font-black uppercase tracking-[0.35em]">The Art of the Read</p>
+          <div className="grule w-24 mx-auto mb-4"></div>
           <div className="flex justify-center gap-2 mb-4">
             <button onClick={() => { ping("click", muted); setNameInput(name); setScreen("login"); }}
               className="bg-white/5 border border-amber-500/30 text-amber-200 text-xs font-black px-3 py-1.5 rounded-full active:scale-95 transition">👤 {name} ✏️</button>
@@ -514,7 +543,7 @@ function App() {
               className="bg-white/5 border border-amber-500/30 text-amber-200 text-xs font-black px-3 py-1.5 rounded-full active:scale-95 transition">🔗 Share</button>
           </div>
           {note && <div className="text-center mb-3"><span className="inline-block gbtn text-xs font-black px-4 py-1.5 rounded-full" style={{ animation: "pop 0.3s both" }}>{note}</span></div>}
-          <div className="bg-black/35 rounded-2xl p-3 mb-4 border border-amber-500/20">
+          <div className="bg-black/40 rounded-2xl p-3 mb-4 border border-amber-500/25">
             <div className="flex items-center justify-between mb-2">
               <span className="text-amber-200/90 text-[11px] font-black uppercase tracking-widest">🎭 Locker · Lvl {lvl}</span>
               <span className="text-amber-300 text-[11px] font-black">{xp} XP</span>
@@ -524,8 +553,8 @@ function App() {
                 const open = s.xp <= xp, sel = s.id === skin;
                 return (
                   <button key={s.id} disabled={!open} onClick={() => { ping("click", muted); setSkin(s.id); }}
-                    className={"relative shrink-0 w-16 rounded-xl border-2 p-1.5 text-center transition " + (sel ? "gsel" : open ? "bg-white/5 border-amber-500/30 active:scale-90" : "bg-black/50 border-white/10 cursor-default")}>
-                    <div className="text-2xl" style={!open ? { filter: "grayscale(1)", opacity: 0.4 } : undefined}>{s.f.idle}</div>
+                    className={"relative shrink-0 w-[68px] rounded-xl border-2 p-1.5 text-center transition " + (sel ? "gsel" : open ? "bg-white/5 border-amber-500/30 active:scale-90" : "bg-black/50 border-white/10 cursor-default")}>
+                    <div className="text-3xl" style={!open ? { filter: "grayscale(1)", opacity: 0.4 } : undefined}>{s.f.idle}</div>
                     {!open && <span className="absolute top-0.5 right-1 text-[11px]">🔒</span>}
                     <div className={"text-[9px] font-black leading-tight " + (sel ? "" : open ? "text-white" : "text-amber-300/90")}>{open ? s.name : s.xp + " XP"}</div>
                   </button>
@@ -580,7 +609,7 @@ function App() {
   if (screen === "over") {
     const rank = stats.score > 600 ? "🦈 Card Shark" : stats.score > 350 ? "🐂 Table Bull" : stats.score > 150 ? "🐣 Rising Rookie" : "🐠 Fish Food";
     return (
-      <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG}>
+      <div className="min-h-[640px] w-full flex items-center justify-center p-4" style={BG_HOME}>
         <style>{STYLE}</style>
         <div className={"relative " + PANEL + " p-7 max-w-sm w-full text-center overflow-hidden"}>
           {stats.correct > 0 && <Confetti />}
@@ -605,7 +634,7 @@ function App() {
 
   const lowTime = blitz && timeLeft <= 10;
   const Chip = ({ children, hot }) => (<span className={"flex items-center gap-1 px-3 py-1.5 rounded-full font-black text-sm " + (hot ? "bg-rose-600 text-white animate-pulse" : "bg-black/50 text-white border border-amber-500/25")}>{children}</span>);
-  const boardLabel = round.mode === "draft" ? (revealed ? "Showdown" : sweating ? "Running…" : round.flop.length ? "Flop" : "Pre-draft") : round.mode === "showdown" ? "River" : round.street;
+  const boardLabel = round.mode === "draft" ? (revealed ? "Showdown" : sweating ? "Running…" : "Pre-draft") : round.mode === "showdown" ? "River" : round.street;
   return (
     <div className="min-h-[640px] w-full p-3 sm:p-5 relative overflow-hidden" style={{ ...BG, animation: shake ? "shake 0.55s" : undefined }}>
       <style>{STYLE}</style>
@@ -625,13 +654,13 @@ function App() {
           {blitz && <Chip hot={lowTime}>⏰ {timeLeft}s</Chip>}
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setMuted((m) => !m)} className="px-2.5 py-1.5 rounded-full bg-black/50 text-white text-sm active:scale-90 transition border border-amber-500/25">{muted ? "🔇" : "🔊"}</button>
+          <button onClick={() => { if (!muted) { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} } setMuted((m) => !m); }} className="px-2.5 py-1.5 rounded-full bg-black/50 text-white text-sm active:scale-90 transition border border-amber-500/25">{muted ? "🔇" : "🔊"}</button>
           <button onClick={() => setScreen("menu")} className="px-3 py-1.5 rounded-full bg-black/50 text-white text-xs font-bold active:scale-90 transition border border-amber-500/25">↩ Menu</button>
         </div>
       </div>
       <div className="max-w-3xl mx-auto mb-2 relative z-10"><ComboMeter streak={stats.streak} /></div>
       <div className="flex items-center gap-2 max-w-3xl mx-auto mb-3 relative z-10">
-        <Avatar skin={curSkin} mood={mood} name={name} />
+        <Avatar skin={curSkin} mood={mood} name={name} size="text-5xl" />
         <div className="bg-white rounded-2xl rounded-bl-none px-4 py-2 shadow-lg font-bold text-stone-900 text-sm" style={{ animation: "pop 0.3s both" }}>{msg}</div>
         <span className="ml-auto shrink-0 bg-black/50 text-amber-300 text-[10px] font-black px-2.5 py-1 rounded-full whitespace-nowrap border border-amber-500/25">⚡ {curSkin.perkName}</span>
       </div>
@@ -743,7 +772,8 @@ function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft
   const drafting = !sweating && !revealed;
   return (
     <React.Fragment>
-      {drafting && <p className="text-center text-white font-black mb-3 text-lg drop-shadow">👉 Pick 2 cards ({draftSel.length}/2)</p>}
+      {drafting && <p className="text-center text-white font-black mb-1 text-lg drop-shadow">👉 Tap to pick 2 ({draftSel.length}/2)</p>}
+      {drafting && <p className="text-center text-amber-200/70 text-[11px] mb-3">Tap a chosen card to drop it · tap another to swap</p>}
       {sweating && <p className="text-center text-amber-300 font-black mb-2 text-lg drop-shadow animate-pulse">🔥 Running it out…</p>}
       {revealed && <p className="text-center text-white font-black mb-2 text-lg drop-shadow">Showdown!</p>}
 
