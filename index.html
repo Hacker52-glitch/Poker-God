@@ -463,7 +463,7 @@ function App() {
   };
 
   const acc = stats.total ? Math.round((stats.correct / stats.total) * 100) : 0;
-  const correct = revealed && (mode === "range" ? pickv === round.bucket : (round ? round.winners.includes(pickv) : false));
+  const correct = revealed && mode !== "draft" && (mode === "range" ? pickv === round.bucket : (round && round.winners ? round.winners.includes(pickv) : false));
   const lvl = unlockedCount(xp);
   const nextSkin = SKINS.find((s) => s.xp > xp);
 
