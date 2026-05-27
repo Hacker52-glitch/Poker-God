@@ -893,9 +893,7 @@ function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft
               return (
               <div key={k} className="text-center">
                 <div className={"text-[10px] uppercase tracking-widest font-black mb-1 " + (oppWon ? "text-emerald-300" : "text-rose-300")}>{POS[k + 1] || ("Opp " + (k + 1))}{oppWon && " 🏆"}</div>
-                <div className={"inline-flex gap-1.5 justify-center rounded-xl p-1 " + (oppWon ? "ring-4 ring-emerald-300/70 bg-emerald-500/20" : "")}>{revealed
-                  ? o.map((c, j) => <PlayingCard key={j} c={c} small />)
-                  : <React.Fragment><CardBack small /><CardBack small /></React.Fragment>}</div>
+                <div className={"inline-flex gap-1.5 justify-center rounded-xl p-1 " + (oppWon ? "ring-4 ring-emerald-300/70 bg-emerald-500/20" : "")}>{o.map((c, j) => <PlayingCard key={j} c={c} small />)}</div>
                 {revealed && <div className="text-white text-[11px] mt-1 font-bold leading-tight">{describe(evaluate7([...o, ...round.fullBoard]))}</div>}
               </div>
               );
