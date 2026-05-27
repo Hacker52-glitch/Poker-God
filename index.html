@@ -783,6 +783,17 @@ function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft
   const heroMade = revealed && heroSel.length === 2 ? describe(evaluate7([...heroSel, ...round.fullBoard])) : null;
   const drafting = !sweating && !revealed;
   const multi = round.opps.length > 1;
+  // Resolve showdown result for display (when revealed)
+  let resultLine = null;
+  if (revealed && heroSel.length === 2) {
+    const all = [heroSel, ...round.opps];
+    let best = null, idxs = [];
+    for (let h = 0; h < all.length; h++) { const sc = evaluate7([...all[h], ...round.fullBoard]); if (best === null || cmp(sc, best) > 0) { best = sc; idxs = [h]; } else if (cmp(sc, best) === 0) idxs.push(h); }
+    const heroIn = idxs.includes(0);
+    if (heroIn && idxs.length === 1) resultLine = "💰 " + (name || "You") + " scoop the pot!";
+    else if (heroIn && idxs.length > 1) resultLine = "🤝 Chopped — " + (name || "You") + " split it.";
+    else resultLine = "💀 The field got there.";
+  }
   return (
     <React.Fragment>
       {drafting && (
@@ -835,3 +846,27 @@ function DraftView({ round, draftSel, sweating, revealed, toggleDraft, lockDraft
               <div key={k} className="text-center">
                 <div className="text-rose-300 text-[10px] uppercase tracking-widest font-black mb-1">{POS[k + 1] || ("Opp " + (k + 1))}</div>
                 <div className="flex gap-1.5 justify-center">{revealed
+                  ? o.map((c, j) => <PlayingCard key={j} c={c} small />)
+                  : <React.Fragment><CardBack small /><CardBack small /></React.Fragment>}</div>
+                {revealed && <div className="text-white text-[11px] mt-1 font-bold leading-tight">{describe(evaluate7([...o, ...round.fullBoard]))}</div>}
+                <div className="text-rose-300/80 text-[10px] mt-0.5 font-black max-w-[110px] leading-tight">{round.oppRanges[k]}</div>
+              </div>
+            ))}
+          </div>
+          {sweating && liveEq != null && (
+            <div className="mt-3"><EquityBar eq={liveEq} oppLabel={multi ? "FIELD" : "OPP"} /></div>
+          )}
+          {revealed && resultLine && (
+            <p className="mt-3 text-center text-white font-bold text-sm bg-black/40 inline-block px-4 py-1.5 rounded-full border border-amber-500/20 mx-auto" style={{ display: "block", width: "fit-content" }}>{resultLine}</p>
+          )}
+        </React.Fragment>
+      )}
+    </React.Fragment>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+  </script>
+</body>
+</html>
